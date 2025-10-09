@@ -1,0 +1,32 @@
+{
+  "name": "loan-app",
+  "version": "1.0.0",
+  "description": "A Fastify-based loan application server with TypeScript",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fastify": "^4.24.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.20",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "fastify",
+    "loan",
+    "api",
+    "server",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT"
+}
