@@ -1,29 +1,32 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "commonjs",
-    "lib": ["ES2022"],
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "removeComments": true,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "exactOptionalPropertyTypes": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noUncheckedIndexedAccess": true
+      "target": "ESNext",
+      "module": "ESNext",
+      "moduleResolution": "Node",
+      "lib": [
+          "esnext"
+      ],
+      "allowJs": true,
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "sourceMap": true,
+      "outDir": "build",
+      "baseUrl": "src",
+      "skipLibCheck": true,
+      "strict": true,
+      "resolveJsonModule": true,
+      "experimentalDecorators": true,
+      "strictPropertyInitialization": false,
+      "emitDecoratorMetadata": true,
+      "paths": {
+          "*.js": ["*.ts"]
+      }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+      "src/**/*.ts",
+      "tests/**/*.ts"
+  ],
+  "exclude": [
+      "node_modules"
+  ]
 }

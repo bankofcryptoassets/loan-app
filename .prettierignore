@@ -1,0 +1,6 @@
+.circleci
+.vscode
+package.json
+package-lock.json
+README.md
+build/
