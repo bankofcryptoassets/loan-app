@@ -75,6 +75,7 @@ const start = async (): Promise<void> => {
             deribit: deribitConfig,
             coingecko: coingeckoConfig,
             rpc: rpcConfig,
+            protocol: protocolConfig,
         } = config.getConfig();
 
         // connect to MongoDB (if configuration provided)
@@ -91,7 +92,7 @@ const start = async (): Promise<void> => {
         const axiosService = new AxiosService();
         const deribitService = new DeribitService(deribitConfig, axiosService);
         const _coingeckoService = new CoinGecko(coingeckoConfig, axiosService);
-        const rpcService = new Rpc(rpcConfig);
+        const rpcService = new Rpc(rpcConfig, protocolConfig);
 
         // controllers
         const insuranceController = new InsuranceController(
