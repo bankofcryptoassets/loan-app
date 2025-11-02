@@ -1,19 +1,35 @@
 {
   "name": "loan-app",
+  "type": "module",
   "version": "1.0.0",
   "description": "A Fastify-based loan application server with TypeScript",
-  "main": "dist/server.js",
+  "main": "build/server.js",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts",
-    "type-check": "tsc --noEmit"
+    "build": "esbuild `find src \\( -name '*.ts' \\)` --platform=node --outdir=build --resolve-extensions=.js",
+    "start": "node ./build/server.js",
+    "dev": "tsx watch ./src/server.ts"
   },
   "dependencies": {
-    "fastify": "^4.24.3"
+    "axios": "^1.12.2",
+    "dotenv": "^17.2.3",
+    "fastify": "^4.24.3",
+    "luxon": "^3.7.2",
+    "mongo": "^0.1.0",
+    "mongoose": "^8.19.2",
+    "viem": "^2.38.5",
+    "winston": "^3.18.3"
   },
   "devDependencies": {
+    "@types/luxon": "^3.7.1",
     "@types/node": "^20.19.20",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "esbuild": "^0.14.54",
+    "eslint": "8.28.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "prettier": "2.8.0",
+    "ts-node": "^10.9.2",
     "tsx": "^4.6.0",
     "typescript": "^5.3.0"
   },
