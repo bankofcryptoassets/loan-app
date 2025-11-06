@@ -6,6 +6,7 @@ import { combinedLogger } from '../utils/logger.js';
 
 export class Rpc {
     readonly publicClient;
+    readonly publicClientMainnet;
     readonly CBBTC_EAC_AGG = '0x07DA0E54543a844a80ABE69c8A12F22B3aA59f9D';
     constructor(
         private config: RpcConfig,
@@ -22,6 +23,11 @@ export class Rpc {
             transport: http(this.config.url),
             chain: this.config.chainId === base.id ? base : baseSepolia,
         });
+
+        this.publicClientMainnet = createPublicClient({
+            transport: http(this.config.mainnetUrl),
+            chain: base,
+        });
     }
 
     async getStrikePrice(_deposit: number, _loan: number) {
@@ -30,7 +36,7 @@ export class Rpc {
     }
 
     async getBtcPrice() {
-        const ans = await this.publicClient.readContract({
+        const ans = await this.publicClientMainnet.readContract({
             abi: EAC_AGG_PROXY_ABI,
             functionName: 'latestAnswer',
             address: this.CBBTC_EAC_AGG,

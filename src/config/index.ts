@@ -61,6 +61,7 @@ class Config {
         };
 
         const rpcConfig = {
+            mainnetUrl: this.getEnvString('RPC_URL_MAINNET'),
             url: this.getEnvString('RPC_URL'),
             chainId: this.getEnvNumber('CHAIN_ID'),
             contractAddresses: {},

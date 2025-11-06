@@ -148,7 +148,15 @@ export class DeribitService {
                     ...this.parseInstrumentName(inst.instrument_name),
                 };
             })
-            .filter((inst) => inst.parsed.strike < strikePrice)
-            .sort((a, b) => a.parsed.strike - b.parsed.strike);
+            .filter((inst) => inst.parsed.strike > strikePrice)
+            .sort((a, b) => {
+                if (a.strike !== b.strike) {
+                    return a.parsed.strike - b.parsed.strike;
+                } else {
+                    return (
+                        b.parsed.expiry.getTime() - a.parsed.expiry.getTime()
+                    );
+                }
+            });
     }
 }

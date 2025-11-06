@@ -29,6 +29,7 @@ export interface CoinGeckoConfig {
 }
 
 export interface RpcConfig {
+    mainnetUrl: string;
     url: string;
     chainId: number;
     contractAddresses: { [key: string]: string };
