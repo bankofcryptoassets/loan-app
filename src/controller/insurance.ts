@@ -31,14 +31,11 @@ export class InsuranceController {
                 message: 'qty & deposit should be a floating point number',
             });
         }
-        // 8
-        // 30% 0f 8 = 2.4
+
         const qty = Number(query.qty);
         const deposit = Number((qty * Number(query.deposit)) / 100);
         const loan = qty - deposit;
         const n = Number(query.n ?? 12);
-
-        // console.log({ qty, deposit, loan });
 
         if (deposit > 1) {
             return reply.code(400).send({
@@ -66,12 +63,22 @@ export class InsuranceController {
             strikePrice
         );
 
+        const flashLoanFeePercent = parseFloat(
+            this.protocolConfig.flashLoanFee
+        );
+        const protocolLoanInitFeePercent = parseFloat(
+            this.protocolConfig.protocolLoanInitFee
+        );
         const r = maxInterestRate / 100 / n;
         const principal = qty * btcPrice * loan;
         const downPayment = qty * btcPrice * deposit;
         const emiAmount =
             (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
         const interestAmount = emiAmount * n - principal;
+        const flashLoanFee = (flashLoanFeePercent * principal) / 100;
+        const protocolLoanInitFee =
+            (protocolLoanInitFeePercent * qty * btcPrice) / 100;
+        const totalFee = flashLoanFee + protocolLoanInitFee;
 
         return reply.code(200).send({
             success: true,
@@ -83,12 +90,15 @@ export class InsuranceController {
                 strikePrice,
                 maxInterestRate,
                 btcPrice,
+                fee: {
+                    flashLoanFee,
+                    protocolLoanInitFee,
+                    totalFee,
+                },
                 inst: inst[0],
             },
         });
     }
-    //protocol fee = 0.5%
-    //
 }
 
 export default InsuranceController;

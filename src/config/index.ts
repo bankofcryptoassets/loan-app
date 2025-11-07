@@ -69,6 +69,8 @@ class Config {
 
         const protocolConfig = {
             maxInterestRate: this.getEnvNumber('MAX_INTEREST_RATE'),
+            flashLoanFee: this.getEnvString('FLASH_LOAN_FEE'),
+            protocolLoanInitFee: this.getEnvString('PROTOCOL_LOAN_INIT_FEE'),
         };
 
         return {

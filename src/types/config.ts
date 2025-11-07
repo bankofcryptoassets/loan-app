@@ -37,6 +37,8 @@ export interface RpcConfig {
 
 export interface ProtocolConfig {
     maxInterestRate: number;
+    flashLoanFee: string;
+    protocolLoanInitFee: string;
 }
 
 export interface AppConfig {
