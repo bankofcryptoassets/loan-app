@@ -53,11 +53,10 @@ export class InsuranceController {
         const btcPrice = await this.rpcService.getBtcPrice();
 
         // get strike price, interest rate and btc price from contract.
-        const { strikePrice, maxInterestRate } =
-            await this.rpcService.fetchEstimationParams(
-                deposit * btcPrice,
-                loan * btcPrice
-            );
+        const strikePrice = await this.rpcService.getStrikePrice(
+            deposit * btcPrice,
+            loan * btcPrice
+        );
 
         const inst = await this.deribitService.getOptimalInstrument(
             strikePrice
@@ -69,7 +68,7 @@ export class InsuranceController {
         const protocolLoanInitFeePercent = parseFloat(
             this.protocolConfig.protocolLoanInitFee
         );
-        const r = maxInterestRate / 100 / n;
+        const r = this.protocolConfig.maxInterestRate / 100 / n;
         const principal = qty * btcPrice * loan;
         const downPayment = qty * btcPrice * deposit;
         const emiAmount =
@@ -88,7 +87,7 @@ export class InsuranceController {
                 interestAmount, // (EMI * n) - p
                 emiAmount, // EMI = P*r(1+r)n/((1+r)n-1), where r = 12% from pool mas of slope, n = 12 from FE
                 strikePrice,
-                maxInterestRate,
+                maxInterestRate: this.protocolConfig.maxInterestRate,
                 btcPrice,
                 fee: {
                     flashLoanFee,

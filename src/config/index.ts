@@ -64,7 +64,9 @@ class Config {
             mainnetUrl: this.getEnvString('RPC_URL_MAINNET'),
             url: this.getEnvString('RPC_URL'),
             chainId: this.getEnvNumber('CHAIN_ID'),
-            contractAddresses: {},
+            contractAddresses: {
+                loan: this.getEnvString('ADDR_LOAN'),
+            },
         };
 
         const protocolConfig = {

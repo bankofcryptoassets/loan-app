@@ -1,8 +1,9 @@
 import { EAC_AGG_PROXY_ABI } from '../abis/eacAggregatorProxy.js';
 import { ProtocolConfig, RpcConfig } from '../types/config.js';
-import { createPublicClient, http } from 'viem';
+import { Address, createPublicClient, http, parseUnits } from 'viem';
 import { base, baseSepolia } from 'viem/chains';
 import { combinedLogger } from '../utils/logger.js';
+import { LOAN_ABI } from '../abis/loan.js';
 
 export class Rpc {
     readonly publicClient;
@@ -30,9 +31,17 @@ export class Rpc {
         });
     }
 
-    async getStrikePrice(_deposit: number, _loan: number) {
-        // TODO: fetch from contract
-        return 105_000;
+    async getStrikePrice(deposit: number, loan: number) {
+        const depositInUsdc = parseUnits(deposit.toFixed(6), 6);
+        const loanInUsdc = parseUnits(loan.toFixed(6), 6);
+        return Number(
+            (await this.publicClient.readContract({
+                address: this.config.contractAddresses.loan as Address,
+                abi: LOAN_ABI,
+                functionName: 'calculateStrikePrice',
+                args: [depositInUsdc, loanInUsdc],
+            })) / BigInt(10 ** 8)
+        );
     }
 
     async getBtcPrice() {
