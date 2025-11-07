@@ -66,9 +66,6 @@ export class InsuranceController {
             strikePrice
         );
 
-        // console.log(inst.length);
-        // console.log(inst[0], inst[1], inst[2], inst[3], inst[4]);
-
         const r = maxInterestRate / 100 / n;
         const principal = qty * btcPrice * loan;
         const downPayment = qty * btcPrice * deposit;
@@ -86,7 +83,7 @@ export class InsuranceController {
                 strikePrice,
                 maxInterestRate,
                 btcPrice,
-                inst0: inst[0],
+                inst: inst[0],
             },
         });
     }

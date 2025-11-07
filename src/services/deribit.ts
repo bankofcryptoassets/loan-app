@@ -109,9 +109,15 @@ export class DeribitService {
         // Example: BTC-31OCT25-40000-P
         const [token, dateStr, strikeStr] = instrumentName.split('-');
         // Parse date (e.g., 31OCT25 -> 2025-10-31)
-        const day = parseInt(dateStr.slice(0, 2));
-        const monthStr = dateStr.slice(2, 5).toUpperCase();
-        const year = 2000 + parseInt(dateStr.slice(5)); // assumes year after 2000
+        const dayMatch = dateStr.match(/^\d{1,2}/);
+        if (!dayMatch) {
+            throw new Error('Invalid date format in instrumentName');
+        }
+        const day = parseInt(dayMatch[0]);
+        const monthStr = dateStr
+            .slice(dayMatch[0].length, dayMatch[0].length + 3)
+            .toUpperCase();
+        const year = 2000 + parseInt(dateStr.slice(dayMatch[0].length + 3)); // assumes year after 2000
         const monthMap: Record<string, number> = {
             JAN: 0,
             FEB: 1,

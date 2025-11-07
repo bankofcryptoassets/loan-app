@@ -17,21 +17,6 @@ const fastify: FastifyInstance = Fastify({
     logger: true,
 });
 
-// Health check endpoint
-// fastify.get<{ Reply: HealthCheckResponse }>(
-//     '/health',
-//     async (
-//         _request: FastifyRequest,
-//         _reply: FastifyReply
-//     ): Promise<HealthCheckResponse> => {
-//         return {
-//             status: 'ok',
-//             timestamp: new Date().toISOString(),
-//             uptime: process.uptime(),
-//             service: 'loan-app',
-//         };
-//     }
-// );
 
 // Error handler
 fastify.setErrorHandler(
@@ -97,7 +82,8 @@ const start = async (): Promise<void> => {
         // controllers
         const insuranceController = new InsuranceController(
             deribitService,
-            rpcService
+            rpcService,
+            protocolConfig
         );
 
         //initialize routes
