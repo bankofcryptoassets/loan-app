@@ -2,11 +2,18 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { DeribitService } from '../services/deribit.js';
 import { Rpc } from '../services/rpc.js';
 import { ProtocolConfig } from '../types/config.js';
+import { getAllLoans, getUserByWallet } from '../repository/loan.js';
+import { formatUnits, isAddress } from 'viem';
+import { serializeBigInt } from '../utils/bigint.js';
 
 type EstimateReqParams = {
     qty: string;
     deposit: string;
     n: string;
+};
+
+type MetadataParams = {
+    wallet: string;
 };
 
 export class InsuranceController {
@@ -96,6 +103,47 @@ export class InsuranceController {
                 },
                 inst: inst[0],
             },
+        });
+    }
+
+    public async metadata(request: FastifyRequest, reply: FastifyReply) {
+        const { wallet } = request.query as MetadataParams;
+
+        if (!wallet || !isAddress(wallet)) {
+            return reply.code(400).send({
+                message: 'Invalid wallet address',
+            });
+        }
+
+        const [ats, vdtts, reserveData, loans, userSpecificLoans] =
+            await Promise.all([
+                this.rpcService.getATokenTotalSupply(),
+                this.rpcService.getVdtTokenTotalSupply(),
+                this.rpcService.getAvailableBtcFromReserve(),
+                getAllLoans(),
+                getUserByWallet(wallet),
+            ]);
+
+        const totalCollateral = loans.reduce(
+            (acc, obj) => acc + BigInt(obj.collateral),
+            BigInt(0)
+        );
+
+        const balance = userSpecificLoans.reduce(
+            (acc, obj) => acc + BigInt(obj.collateral),
+            BigInt(0)
+        );
+
+        return reply.code(200).send({
+            totalDeposited: formatUnits(ats, 8),
+            totalBorrowed: formatUnits(vdtts, 6),
+            rate: (
+                reserveData.currentVariableBorrowRate / BigInt(10 ** 27)
+            ).toString(),
+            reserveData: serializeBigInt(reserveData),
+            numberOfBorrowers: loans.length,
+            totalCollateral: formatUnits(totalCollateral, 6),
+            balance: balance.toString(),
         });
     }
 }

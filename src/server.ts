@@ -3,6 +3,7 @@ import Fastify, {
     FastifyRequest,
     FastifyReply,
 } from 'fastify';
+import mongoose from 'mongoose';
 import { ErrorResponse } from './types/index.js';
 import Config from './config/index.js';
 import { connectToMongo, closeMongo } from './services/mongodb.js';
@@ -16,7 +17,6 @@ import { Rpc } from './services/rpc.js';
 const fastify: FastifyInstance = Fastify({
     logger: true,
 });
-
 
 // Error handler
 fastify.setErrorHandler(
@@ -46,6 +46,12 @@ const initializeRoutes = (insuranceController: InsuranceController) => {
         '/api/insurance/estimate',
         insuranceController.estimate.bind(insuranceController)
     );
+
+    // metadata
+    fastify.get(
+        '/api/metadata',
+        insuranceController.metadata.bind(insuranceController)
+    );
 };
 
 // Start server
@@ -66,10 +72,24 @@ const start = async (): Promise<void> => {
         // connect to MongoDB (if configuration provided)
         try {
             await connectToMongo(databaseConfig);
-            combinedLogger.info('Connected to MongoDB');
+            combinedLogger.info('Connected to MongoDB (native driver)');
         } catch (dbErr) {
             combinedLogger.warn(
                 `Could not connect to MongoDB at startup: ${String(dbErr)}`
+            );
+        }
+
+        // connect Mongoose (required for User model)
+        try {
+            if (databaseConfig.uri && databaseConfig.name) {
+                await mongoose.connect(databaseConfig.uri, {
+                    dbName: databaseConfig.name,
+                });
+                combinedLogger.info('Connected to MongoDB (Mongoose)');
+            }
+        } catch (mongooseErr) {
+            combinedLogger.warn(
+                `Could not connect Mongoose at startup: ${String(mongooseErr)}`
             );
         }
 
@@ -119,9 +139,18 @@ const shutdown = async (signal?: string) => {
 
     try {
         await closeMongo();
-        fastify.log.info('MongoDB connection closed');
+        fastify.log.info('MongoDB connection closed (native driver)');
     } catch (e) {
         fastify.log.error(`Error closing MongoDB connection: ${String(e)}`);
+    }
+
+    try {
+        if (mongoose.connection.readyState === 1) {
+            await mongoose.disconnect();
+            fastify.log.info('MongoDB connection closed (Mongoose)');
+        }
+    } catch (e) {
+        fastify.log.error(`Error closing Mongoose connection: ${String(e)}`);
     }
 
     process.exit(0);

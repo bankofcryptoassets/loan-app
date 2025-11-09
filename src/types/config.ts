@@ -34,6 +34,8 @@ export interface RpcConfig {
     chainId: number;
     contractAddresses: {
         loan: string;
+        aToken: string;
+        vdtToken: string;
     };
 }
 

@@ -66,6 +66,9 @@ class Config {
             chainId: this.getEnvNumber('CHAIN_ID'),
             contractAddresses: {
                 loan: this.getEnvString('ADDR_LOAN'),
+                aToken: this.getEnvString('ADDR_A_TOKEN'),
+                vdtToken: this.getEnvString('ADDR_VDT_TOKEN'),
+                lendingPool: this.getEnvString('ADDR_LENDING_POOL'),
             },
         };
 

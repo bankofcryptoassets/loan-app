@@ -1,9 +1,10 @@
 import { EAC_AGG_PROXY_ABI } from '../abis/eacAggregatorProxy.js';
 import { ProtocolConfig, RpcConfig } from '../types/config.js';
-import { Address, createPublicClient, http, parseUnits } from 'viem';
+import { Address, createPublicClient, erc20Abi, http, parseUnits } from 'viem';
 import { base, baseSepolia } from 'viem/chains';
 import { combinedLogger } from '../utils/logger.js';
 import { LOAN_ABI } from '../abis/loan.js';
+import { LENDING_POOL } from '../abis/lendingPool.js';
 
 export class Rpc {
     readonly publicClient;
@@ -77,6 +78,32 @@ export class Rpc {
                 btcPrice: res[1].value,
                 maxInterestRate: this.protocolConfig.maxInterestRate,
             };
+        });
+    }
+
+    async getATokenTotalSupply() {
+        return this.publicClient.readContract({
+            address: this.config.contractAddresses.aToken as Address,
+            abi: erc20Abi,
+            functionName: 'totalSupply',
+        });
+    }
+
+    async getVdtTokenTotalSupply() {
+        return this.publicClient.readContract({
+            address: this.config.contractAddresses.vdtToken as Address,
+            abi: erc20Abi,
+            functionName: 'totalSupply',
+            args: [],
+        });
+    }
+
+    async getAvailableBtcFromReserve() {
+        return this.publicClient.readContract({
+            abi: LENDING_POOL,
+            address: '0x64688EAa8cBC3029D303b61D7e77f986E34742b3',
+            functionName: 'getReserveData',
+            args: ['0x562937072309F8c929206a58e72732dFCA5b67D6'],
         });
     }
 }
