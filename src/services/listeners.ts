@@ -2,9 +2,9 @@ import { Address, getAddress, Log } from 'viem';
 import { LOAN_ABI } from '../abis/loan.js';
 import { RpcConfig } from '../types/config.js';
 import { Rpc } from './rpc';
-import { createLoan } from 'repository/loan.js';
-import { combinedLogger } from 'utils/logger.js';
-import { saveLoanInitTx } from 'repository/loanInitTx.js';
+import { createLoan } from '../repository/loan.js';
+import { combinedLogger } from '../utils/logger.js';
+import { saveLoanInitTx } from '../repository/loanInitTx.js';
 
 type LoanCreatedEventAbi = {
     anonymous: false;

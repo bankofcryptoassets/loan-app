@@ -12,7 +12,7 @@ import { AxiosService } from './services/axios.js';
 import { DeribitService } from './services/deribit.js';
 import CoinGecko from './services/coingecko.js';
 import { Rpc } from './services/rpc.js';
-import { Listeners } from 'services/listeners.js';
+import { Listeners } from './services/listeners.js';
 
 const fastify: FastifyInstance = Fastify({
     logger: true,
