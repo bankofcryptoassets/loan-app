@@ -10,23 +10,24 @@ const loanSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    // in cbbtc
+    // in usdc
     deposit: {
         type: String,
         required: true,
-        default: '0',
     },
     // in usdc
     loan: {
         type: String,
         required: true,
-        default: '0',
     },
-    // in usdc
+    // in cbbtc
     collateral: {
         type: String,
         required: true,
-        default: '0',
+    },
+    salt: {
+        type: String,
+        required: true,
     },
 });
 

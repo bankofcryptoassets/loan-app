@@ -6,13 +6,13 @@ import Fastify, {
 import mongoose from 'mongoose';
 import { ErrorResponse } from './types/index.js';
 import Config from './config/index.js';
-import { connectToMongo, closeMongo } from './services/mongodb.js';
 import InsuranceController from './controller/insurance.js';
 import { combinedLogger } from './utils/logger.js';
 import { AxiosService } from './services/axios.js';
 import { DeribitService } from './services/deribit.js';
 import CoinGecko from './services/coingecko.js';
 import { Rpc } from './services/rpc.js';
+import { Listeners } from 'services/listeners.js';
 
 const fastify: FastifyInstance = Fastify({
     logger: true,
@@ -54,6 +54,10 @@ const initializeRoutes = (insuranceController: InsuranceController) => {
     );
 };
 
+const initializeListeners = async (listenersService: Listeners) => {
+    await listenersService.init();
+};
+
 // Start server
 const start = async (): Promise<void> => {
     try {
@@ -70,14 +74,14 @@ const start = async (): Promise<void> => {
         } = config.getConfig();
 
         // connect to MongoDB (if configuration provided)
-        try {
-            await connectToMongo(databaseConfig);
-            combinedLogger.info('Connected to MongoDB (native driver)');
-        } catch (dbErr) {
-            combinedLogger.warn(
-                `Could not connect to MongoDB at startup: ${String(dbErr)}`
-            );
-        }
+        // try {
+        //     await connectToMongo(databaseConfig);
+        //     combinedLogger.info('Connected to MongoDB (native driver)');
+        // } catch (dbErr) {
+        //     combinedLogger.warn(
+        //         `Could not connect to MongoDB at startup: ${String(dbErr)}`
+        //     );
+        // }
 
         // connect Mongoose (required for User model)
         try {
@@ -88,7 +92,7 @@ const start = async (): Promise<void> => {
                 combinedLogger.info('Connected to MongoDB (Mongoose)');
             }
         } catch (mongooseErr) {
-            combinedLogger.warn(
+            combinedLogger.error(
                 `Could not connect Mongoose at startup: ${String(mongooseErr)}`
             );
         }
@@ -98,6 +102,7 @@ const start = async (): Promise<void> => {
         const deribitService = new DeribitService(deribitConfig, axiosService);
         const _coingeckoService = new CoinGecko(coingeckoConfig, axiosService);
         const rpcService = new Rpc(rpcConfig, protocolConfig);
+        const listenersService = new Listeners(rpcService, rpcConfig);
 
         // controllers
         const insuranceController = new InsuranceController(
@@ -108,6 +113,11 @@ const start = async (): Promise<void> => {
 
         //initialize routes
         initializeRoutes(insuranceController);
+        combinedLogger.info(`Initialized Routes`);
+
+        //initialize listeners
+        await initializeListeners(listenersService);
+        combinedLogger.info(`Initialized Listeners`);
 
         const { port, host } = config.server;
 
@@ -138,19 +148,12 @@ const shutdown = async (signal?: string) => {
     }
 
     try {
-        await closeMongo();
-        fastify.log.info('MongoDB connection closed (native driver)');
-    } catch (e) {
-        fastify.log.error(`Error closing MongoDB connection: ${String(e)}`);
-    }
-
-    try {
         if (mongoose.connection.readyState === 1) {
             await mongoose.disconnect();
-            fastify.log.info('MongoDB connection closed (Mongoose)');
+            combinedLogger.info('MongoDB connection closed (Mongoose)');
         }
     } catch (e) {
-        fastify.log.error(`Error closing Mongoose connection: ${String(e)}`);
+        combinedLogger.error(`Error closing Mongoose connection: ${String(e)}`);
     }
 
     process.exit(0);

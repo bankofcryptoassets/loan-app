@@ -23,12 +23,14 @@ export async function createLoan({
     lsaAddress,
     deposit,
     collateral,
+    salt,
 }: {
     wallet: Address;
     lsaAddress: Address;
     collateral: string;
     deposit: string;
     loan: string;
+    salt: string;
 }) {
     const newLoan = new Loan({
         wallet,
@@ -36,6 +38,7 @@ export async function createLoan({
         collateral,
         deposit,
         loan,
+        salt,
     });
     return newLoan.save();
 }
