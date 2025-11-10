@@ -34,7 +34,7 @@ class Config {
             port: this.getEnvNumber('PORT', 3000),
             host: this.getEnvString('HOST', '0.0.0.0'),
             nodeEnv: this.getEnvString('NODE_ENV', 'development'),
-            logLevel: this.getEnvString('LOG_LEVEL', 'error'),
+            // logLevel: this.getEnvString('LOG_LEVEL', 'error'),
         };
 
         const databaseConfig: DatabaseConfig = {

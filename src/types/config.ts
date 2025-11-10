@@ -2,7 +2,7 @@ export interface ServerConfig {
     port: number;
     host: string;
     nodeEnv: string;
-    logLevel: string;
+    // logLevel: string;
 }
 
 export interface DatabaseConfig {

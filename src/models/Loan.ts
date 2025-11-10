@@ -4,7 +4,6 @@ const loanSchema = new mongoose.Schema({
     wallet: {
         type: String,
         required: true,
-        unique: true,
     },
     lsaAddress: {
         type: String,

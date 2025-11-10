@@ -63,10 +63,18 @@ export class Listeners {
         ev: Log<bigint, number, false, LoanCreatedEventAbi>
     ) {
         try {
+            combinedLogger.info('Incoming event');
+            combinedLogger.info(
+                `${JSON.stringify(ev, (_key, value) =>
+                    typeof value === 'bigint' ? value.toString() : value
+                )}`
+            );
             const tx = await this.rpcService.getTxReceipt(ev.transactionHash);
+            // console.log('tx:: ', tx);
             const { lsa, borrower, collateralAmount, loanAmount, createdAt } =
                 ev.args;
             const deposit = BigInt(tx.logs[0].data).toString();
+            console.log('deposit:: ', deposit);
             if (
                 !borrower ||
                 !lsa ||
@@ -93,7 +101,10 @@ export class Listeners {
                     typeof value === 'bigint' ? value.toString() : value
                 ),
             });
+
+            combinedLogger.info(`Created Loan: ${lsa} for wallet: ${borrower}`);
         } catch (error) {
+            console.log('Error processing event::: ', error);
             combinedLogger.error(
                 `Error processing event: ${JSON.stringify(
                     ev

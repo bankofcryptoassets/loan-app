@@ -15,7 +15,7 @@ import { Rpc } from './services/rpc.js';
 import { Listeners } from './services/listeners.js';
 
 const fastify: FastifyInstance = Fastify({
-    logger: true,
+    // logger: true,
 });
 
 // Error handler
@@ -127,7 +127,7 @@ const start = async (): Promise<void> => {
             `📊 Health check available at http://${host}:${port}/health`
         );
         combinedLogger.info(`🌍 Environment: ${config.server.nodeEnv}`);
-        combinedLogger.info(`📝 Log level: ${config.server.logLevel}`);
+        // combinedLogger.info(`📝 Log level: ${config.server.logLevel}`);
     } catch (err) {
         combinedLogger.error(
             JSON.stringify(err, Object.getOwnPropertyNames(err))
