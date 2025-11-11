@@ -2,7 +2,11 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { DeribitService } from '../services/deribit.js';
 import { Rpc } from '../services/rpc.js';
 import { ProtocolConfig } from '../types/config.js';
-import { getAllLoans, getUserByWallet } from '../repository/loan.js';
+import {
+    getAllLoans,
+    getUserByLsa,
+    getUserByWallet,
+} from '../repository/loan.js';
 import { formatUnits, isAddress } from 'viem';
 import { serializeBigInt } from '../utils/bigint.js';
 
@@ -14,6 +18,15 @@ type EstimateReqParams = {
 
 type MetadataParams = {
     wallet: string;
+};
+
+type GetWalletParams = {
+    wallet: string;
+    lsa?: string;
+};
+
+type GetLsaParams = {
+    lsa: string;
 };
 
 export class InsuranceController {
@@ -144,6 +157,44 @@ export class InsuranceController {
             numberOfBorrowers: loans.length,
             totalCollateral: formatUnits(totalCollateral, 6),
             balance: balance.toString(),
+        });
+    }
+
+    public async getWallet(request: FastifyRequest, reply: FastifyReply) {
+        const { wallet, lsa } = request.query as GetWalletParams;
+
+        if (!wallet || !isAddress(wallet)) {
+            return reply.code(400).send({
+                message: `Invalid wallet address`,
+            });
+        }
+
+        if (lsa && !isAddress(lsa)) {
+            return reply.code(400).send({
+                message: `Invalid lsa address`,
+            });
+        }
+
+        const result = await getUserByWallet(wallet, lsa);
+
+        return reply.code(200).send({
+            result,
+        });
+    }
+
+    public async getLsa(request: FastifyRequest, reply: FastifyReply) {
+        const { lsa } = request.query as GetLsaParams;
+
+        if (!lsa || !isAddress(lsa)) {
+            return reply.code(400).send({
+                message: `Invalid lsa address`,
+            });
+        }
+
+        const result = await getUserByLsa(lsa);
+
+        return reply.code(200).send({
+            result,
         });
     }
 }

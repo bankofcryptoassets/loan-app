@@ -7,10 +7,15 @@ export async function getUserByLsa(lsaAddress: string) {
     });
 }
 
-export async function getUserByWallet(wallet: string) {
-    return Loan.find({
-        wallet,
-    });
+export async function getUserByWallet(wallet: string, lsaAddress?: string) {
+    return lsaAddress
+        ? Loan.find({
+              wallet,
+              lsaAddress,
+          })
+        : Loan.find({
+              wallet,
+          });
 }
 
 export async function getAllLoans() {

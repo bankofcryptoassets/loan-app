@@ -52,6 +52,18 @@ const initializeRoutes = (insuranceController: InsuranceController) => {
         '/api/metadata',
         insuranceController.metadata.bind(insuranceController)
     );
+
+    // get by wallet address, or optionally by lsa address also
+    fastify.get(
+        '/api/wallet',
+        insuranceController.getWallet.bind(insuranceController)
+    );
+
+    // get only by lsa address
+    fastify.get(
+        '/api/lsa',
+        insuranceController.getLsa.bind(insuranceController)
+    );
 };
 
 const initializeListeners = async (listenersService: Listeners) => {
