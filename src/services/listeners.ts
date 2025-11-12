@@ -2,7 +2,7 @@ import { Address, getAddress, Log } from 'viem';
 import { LOAN_ABI } from '../abis/loan.js';
 import { RpcConfig } from '../types/config.js';
 import { Rpc } from './rpc';
-import { createLoan } from '../repository/loan.js';
+import { addRepayment, createLoan, getUserByLsa } from '../repository/loan.js';
 import { combinedLogger } from '../utils/logger.js';
 import { saveLoanInitTx } from '../repository/loanInitTx.js';
 
@@ -44,6 +44,32 @@ type LoanCreatedEventAbi = {
     type: 'event';
 };
 
+type LoanRepaidEventAbi = {
+    anonymous: false;
+    inputs: [
+        {
+            indexed: false;
+            internalType: 'address';
+            name: 'lsa';
+            type: 'address';
+        },
+        {
+            indexed: false;
+            internalType: 'uint256';
+            name: 'amountRepaid';
+            type: 'uint256';
+        },
+        {
+            indexed: false;
+            internalType: 'uint256';
+            name: 'nextDueTimestamp';
+            type: 'uint256';
+        }
+    ];
+    name: 'Loan__LoanRepaid';
+    type: 'event';
+};
+
 export class Listeners {
     constructor(private rpcService: Rpc, private rpcConfig: RpcConfig) {}
 
@@ -55,6 +81,16 @@ export class Listeners {
             onLogs: async (args) => {
                 const ev = args[args.length - 1];
                 this.handleLoanCreatedEvent(ev);
+            },
+        });
+
+        const _unwatch2 = this.rpcService.publicClient.watchContractEvent({
+            address: this.rpcConfig.contractAddresses.loan as Address,
+            abi: LOAN_ABI,
+            eventName: 'Loan__LoanRepaid',
+            onLogs: async (args) => {
+                const ev = args[args.length - 1];
+                this.handleLoanRepaidEvent(ev);
             },
         });
     }
@@ -70,6 +106,7 @@ export class Listeners {
                 )}`
             );
             const tx = await this.rpcService.getTxReceipt(ev.transactionHash);
+            const btcPrice = await this.rpcService.getBtcPrice();
             // console.log('tx:: ', tx);
             const { lsa, borrower, collateralAmount, loanAmount, createdAt } =
                 ev.args;
@@ -94,6 +131,7 @@ export class Listeners {
                 deposit,
                 loan: loanAmount.toString(),
                 salt: createdAt.toString(),
+                btcPrice,
             });
             await saveLoanInitTx({
                 lsaAddress: getAddress(lsa),
@@ -116,10 +154,35 @@ export class Listeners {
         }
     }
 
-    private handleEvent(ev: Log<bigint, number, false, LoanCreatedEventAbi>) {
+    private async handleLoanRepaidEvent(
+        ev: Log<bigint, number, false, LoanRepaidEventAbi>
+    ) {
+        if (!ev.args.lsa) {
+            // todo setup alerts if lsa is not defined in event data
+            return;
+        }
+
+        const lsaDetails = await getUserByLsa(ev.args.lsa);
+
+        if (!lsaDetails) {
+            // todo setup alerts if lsa is not found in db
+            // todo implement fallbacks to process all loans with index=${lsa}
+            return;
+        }
+        await addRepayment(ev.transactionHash, ev.args.lsa!);
+    }
+
+    private handleEvent(
+        ev:
+            | Log<bigint, number, false, LoanCreatedEventAbi>
+            | Log<bigint, number, false, LoanRepaidEventAbi>
+    ) {
         switch (ev.eventName) {
             case 'Loan__LoanCreated':
                 this.handleLoanCreatedEvent(ev);
+                break;
+            case 'Loan__LoanRepaid':
+                this.handleLoanRepaidEvent(ev);
         }
     }
 }

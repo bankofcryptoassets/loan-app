@@ -17,6 +17,8 @@ export class Rpc {
     readonly publicClient;
     readonly publicClientMainnet;
     readonly CBBTC_EAC_AGG = '0x07DA0E54543a844a80ABE69c8A12F22B3aA59f9D';
+    private cachedBtcPrice: { price: number; time: number } | undefined;
+
     constructor(
         private config: RpcConfig,
         private protocolConfig: ProtocolConfig
@@ -53,12 +55,57 @@ export class Rpc {
     }
 
     async getBtcPrice() {
+        if (
+            this.cachedBtcPrice &&
+            Date.now() - this.cachedBtcPrice.time < 10000
+        ) {
+            return this.cachedBtcPrice.price;
+        }
+
         const ans = await this.publicClientMainnet.readContract({
             abi: EAC_AGG_PROXY_ABI,
             functionName: 'latestAnswer',
             address: this.CBBTC_EAC_AGG,
         });
-        return Number((Number(ans) / 10 ** 8).toFixed(2));
+
+        const parsedAns = Number((Number(ans) / 10 ** 8).toFixed(2));
+
+        this.cachedBtcPrice = {
+            price: parsedAns,
+            time: Date.now(),
+        };
+        return parsedAns;
+    }
+
+    async getLoanByLsa(lsa: Address) {
+        // const res = await this.publicClient.readContract({
+        //     abi: LOAN_ABI,
+        //     address: this.config.contractAddresses.loan as Address,
+        //     functionName: 'getLoanByLSA',
+        //     args: [lsa],
+        // });
+        // return res;
+        const [res, aTokenBalance, vdtTokenBalance] = await Promise.all([
+            this.publicClient.readContract({
+                abi: LOAN_ABI,
+                address: this.config.contractAddresses.loan as Address,
+                functionName: 'getLoanByLSA',
+                args: [lsa],
+            }),
+            this.publicClient.readContract({
+                abi: erc20Abi,
+                address: this.config.contractAddresses.aToken as Address,
+                functionName: 'balanceOf',
+                args: [lsa],
+            }),
+            this.publicClient.readContract({
+                abi: erc20Abi,
+                address: this.config.contractAddresses.vdtToken as Address,
+                functionName: 'balanceOf',
+                args: [lsa],
+            }),
+        ]);
+        return [res, aTokenBalance, vdtTokenBalance];
     }
 
     async fetchEstimationParams(deposit: number, loan: number) {

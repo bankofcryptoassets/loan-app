@@ -7,8 +7,10 @@ import {
     getUserByLsa,
     getUserByWallet,
 } from '../repository/loan.js';
-import { formatUnits, isAddress } from 'viem';
+import { Address, formatUnits, isAddress } from 'viem';
 import { serializeBigInt } from '../utils/bigint.js';
+import { monthsToSeconds, unixToDateString } from '../utils/date.js';
+import { Loan, LsaDetail } from '../types/loan.js';
 
 type EstimateReqParams = {
     qty: string;
@@ -160,26 +162,100 @@ export class InsuranceController {
         });
     }
 
+    private async getContractData(loanItem: Loan) {
+        return this.rpcService
+            .getLoanByLsa(loanItem.lsaAddress as Address)
+            .then((data) => {
+                return {
+                    ...(data[0] as Exclude<typeof data[0], bigint>),
+                    aTokenBalance: data[1] as bigint,
+                    vdtTokenBalance: data[2] as bigint,
+                    ...loanItem,
+                };
+            });
+    }
+
+    private parseLsaDetails(lsaDetail: LsaDetail, btcPrice: number) {
+        const partialLoanDetail = { ...lsaDetail } as Partial<LsaDetail>;
+        delete partialLoanDetail.wallet;
+        delete partialLoanDetail.deposit;
+        delete partialLoanDetail.loan;
+        delete partialLoanDetail.collateral;
+        delete partialLoanDetail.nextDueTimestamp;
+        delete partialLoanDetail.lastDueTimestamp;
+        delete partialLoanDetail.duration;
+        return {
+            ...partialLoanDetail,
+            loanStart: unixToDateString(+lsaDetail.salt),
+            loanEnd: unixToDateString(
+                +lsaDetail.salt + monthsToSeconds(Number(lsaDetail.duration))
+            ),
+            nextDue: unixToDateString(Number(lsaDetail.nextDueTimestamp)),
+            lastDue: unixToDateString(Number(lsaDetail.lastDueTimestamp)),
+            estimatedMonthlyPayment: formatUnits(
+                lsaDetail.estimatedMonthlyPayment,
+                6
+            ),
+            totalInstallments: 12,
+            pnl:
+                (btcPrice - lsaDetail.priceAtBuy) *
+                Number(formatUnits(lsaDetail.aTokenBalance, 8)),
+            btcPrice,
+            repayments: lsaDetail.repayments ?? [],
+        };
+    }
+
     public async getWallet(request: FastifyRequest, reply: FastifyReply) {
-        const { wallet, lsa } = request.query as GetWalletParams;
+        try {
+            const { wallet, lsa } = request.query as GetWalletParams;
 
-        if (!wallet || !isAddress(wallet)) {
-            return reply.code(400).send({
-                message: `Invalid wallet address`,
+            if (!wallet || !isAddress(wallet)) {
+                return reply.code(400).send({
+                    message: `Invalid wallet address`,
+                });
+            }
+
+            if (lsa && !isAddress(lsa)) {
+                return reply.code(400).send({
+                    message: `Invalid lsa address`,
+                });
+            }
+
+            const result: Loan[] = await getUserByWallet(wallet, lsa);
+
+            const [btcPrice, ...lsaDetails] = await Promise.all([
+                this.rpcService.getBtcPrice(),
+                ...result.map((loanItem) => this.getContractData(loanItem)),
+            ]);
+
+            const {
+                aTokenBalance: aTokenBalanceSum,
+                vdtTokenBalance: vdtTokenBalanceSum,
+            } = lsaDetails.reduce(
+                (acc, obj) => {
+                    return {
+                        aTokenBalance: acc.aTokenBalance + obj.aTokenBalance,
+                        vdtTokenBalance:
+                            acc.vdtTokenBalance + obj.vdtTokenBalance,
+                    };
+                },
+                { aTokenBalance: 0n, vdtTokenBalance: 0n }
+            );
+
+            return reply.code(200).send({
+                totalAssetValue:
+                    Number(formatUnits(aTokenBalanceSum, 8)) * btcPrice,
+                totalBorrowedAssets: Number(formatUnits(vdtTokenBalanceSum, 6)),
+                loans: serializeBigInt(
+                    lsaDetails.map((lsaDetail) =>
+                        this.parseLsaDetails(lsaDetail, btcPrice)
+                    )
+                ),
             });
+        } catch (error) {
+            console.log('error:: ', error);
+            throw error;
         }
-
-        if (lsa && !isAddress(lsa)) {
-            return reply.code(400).send({
-                message: `Invalid lsa address`,
-            });
-        }
-
-        const result = await getUserByWallet(wallet, lsa);
-
-        return reply.code(200).send({
-            result,
-        });
     }
 
     public async getLsa(request: FastifyRequest, reply: FastifyReply) {

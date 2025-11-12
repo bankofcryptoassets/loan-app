@@ -15,7 +15,7 @@ import { Rpc } from './services/rpc.js';
 import { Listeners } from './services/listeners.js';
 
 const fastify: FastifyInstance = Fastify({
-    // logger: true,
+    logger: true,
 });
 
 // Error handler

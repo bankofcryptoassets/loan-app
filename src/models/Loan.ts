@@ -24,6 +24,15 @@ const loanSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    priceAtBuy: {
+        type: Number,
+        required: true,
+    },
+    repayments: {
+        type: [String],
+        required: false,
+        default: [],
+    },
     salt: {
         type: String,
         required: true,
