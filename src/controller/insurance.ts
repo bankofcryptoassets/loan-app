@@ -100,10 +100,14 @@ export class InsuranceController {
         const protocolLoanInitFee =
             (protocolLoanInitFeePercent * qty * btcPrice) / 100;
         const totalFee = flashLoanFee + protocolLoanInitFee;
-
+        const insuranceAmount = qty * 0.0335 * btcPrice;
+        const total = principal + interestAmount + totalFee + insuranceAmount;
+        const downPaymentTotal = downPayment + insuranceAmount + totalFee;
+        const approvalTotal = downPayment + insuranceAmount + totalFee;
         return reply.code(200).send({
             success: true,
             data: {
+                insuranceAmount,
                 principal,
                 downPayment,
                 interestAmount, // (EMI * n) - p
@@ -117,6 +121,9 @@ export class InsuranceController {
                     totalFee,
                 },
                 inst: inst[0],
+                total,
+                downPaymentTotal,
+                approvalTotal,
             },
         });
     }
@@ -168,7 +175,7 @@ export class InsuranceController {
             .then((data) => {
                 return {
                     ...(data[0] as Exclude<typeof data[0], bigint>),
-                    aTokenBalance: data[1] as bigint,
+                    acbbtcBalance: data[1] as bigint,
                     vdtTokenBalance: data[2] as bigint,
                     ...loanItem,
                 };
@@ -199,7 +206,7 @@ export class InsuranceController {
             totalInstallments: 12,
             pnl:
                 (btcPrice - lsaDetail.priceAtBuy) *
-                Number(formatUnits(lsaDetail.aTokenBalance, 8)),
+                Number(formatUnits(lsaDetail.acbbtcBalance, 8)),
             btcPrice,
             repayments: lsaDetail.repayments ?? [],
         };
@@ -229,23 +236,28 @@ export class InsuranceController {
             ]);
 
             const {
-                aTokenBalance: aTokenBalanceSum,
+                acbbtcBalance: aTokenBalanceSum,
                 vdtTokenBalance: vdtTokenBalanceSum,
             } = lsaDetails.reduce(
                 (acc, obj) => {
                     return {
-                        aTokenBalance: acc.aTokenBalance + obj.aTokenBalance,
+                        acbbtcBalance: acc.acbbtcBalance + obj.acbbtcBalance,
                         vdtTokenBalance:
                             acc.vdtTokenBalance + obj.vdtTokenBalance,
                     };
                 },
-                { aTokenBalance: 0n, vdtTokenBalance: 0n }
+                { acbbtcBalance: 0n, vdtTokenBalance: 0n }
             );
 
             return reply.code(200).send({
-                totalAssetValue:
-                    Number(formatUnits(aTokenBalanceSum, 8)) * btcPrice,
-                totalBorrowedAssets: Number(formatUnits(vdtTokenBalanceSum, 6)),
+                totalAssetValue: {
+                    usd: Number(formatUnits(aTokenBalanceSum, 8)) * btcPrice,
+                    btc: Number(formatUnits(aTokenBalanceSum, 8)),
+                },
+                totalBorrowedAssets: {
+                    usd: Number(formatUnits(vdtTokenBalanceSum, 6)),
+                    btc: Number(formatUnits(vdtTokenBalanceSum, 6)) / btcPrice,
+                },
                 loans: serializeBigInt(
                     lsaDetails.map((lsaDetail) =>
                         this.parseLsaDetails(lsaDetail, btcPrice)

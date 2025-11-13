@@ -18,7 +18,7 @@ export type LsaDetail = {
     priceAtBuy: number;
     repayments?: string[] | null | undefined;
     salt: string;
-    aTokenBalance: bigint;
+    acbbtcBalance: bigint;
     vdtTokenBalance: bigint;
     borrower: `0x${string}`;
     depositAmount: bigint;
