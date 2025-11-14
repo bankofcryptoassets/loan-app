@@ -3,6 +3,7 @@ import Fastify, {
     FastifyRequest,
     FastifyReply,
 } from 'fastify';
+import cors from '@fastify/cors';
 import mongoose from 'mongoose';
 import { ErrorResponse } from './types/index.js';
 import Config from './config/index.js';
@@ -73,6 +74,10 @@ const initializeListeners = async (listenersService: Listeners) => {
 // Start server
 const start = async (): Promise<void> => {
     try {
+        await fastify.register(cors, {
+            preflightContinue: true,
+        });
+
         // Initialize and validate configuration
         const config = Config.getInstance();
         config.validate();
