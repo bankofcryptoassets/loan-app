@@ -55,7 +55,8 @@ export class InsuranceController {
         }
 
         const qty = Number(query.qty);
-        const deposit = Number((qty * Number(query.deposit)) / 100);
+        const depositPercent = Number(query.deposit) / 100;
+        const deposit = qty * depositPercent;
         const loan = qty - deposit;
         const n = Number(query.n ?? 12);
 
@@ -92,7 +93,7 @@ export class InsuranceController {
         );
         const r = this.protocolConfig.maxInterestRate / 100 / n;
         const principal = qty * btcPrice * loan;
-        const downPayment = qty * btcPrice * deposit;
+        const downPayment = deposit * btcPrice;
         const emiAmount =
             (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
         const interestAmount = emiAmount * n - principal;
