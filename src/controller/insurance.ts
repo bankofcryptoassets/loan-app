@@ -256,8 +256,8 @@ export class InsuranceController {
                     btc: Number(formatUnits(aTokenBalanceSum, 8)),
                 },
                 totalBorrowedAssets: {
-                    usd: Number(formatUnits(vdtTokenBalanceSum, 6)),
-                    btc: Number(formatUnits(vdtTokenBalanceSum, 6)) / btcPrice,
+                    usd: Number(formatUnits(aTokenBalanceSum, 8)) * btcPrice,
+                    btc: Number(formatUnits(aTokenBalanceSum, 8)),
                 },
                 loans: serializeBigInt(
                     lsaDetails.map((lsaDetail) =>
