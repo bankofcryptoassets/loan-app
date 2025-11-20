@@ -36,6 +36,7 @@ export interface RpcConfig {
         loan: string;
         aToken: string;
         vdtToken: string;
+        lendingPool: string;
     };
 }
 

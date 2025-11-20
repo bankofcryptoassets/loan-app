@@ -1,31 +1,32 @@
 import { Address, Hex } from 'viem';
-import { Loan } from '../models/Loan.js';
+import { Loan as LoanModel } from '../models/Loan.js';
+import { Loan as LoanType } from '../types/loan.js';
 
-export async function getUserByLsa(lsaAddress: string) {
-    return Loan.findOne({
+export async function getUserByLsa(lsaAddress: string): Promise<LoanType | null> {
+    return LoanModel.findOne({
         lsaAddress,
-    }).lean();
+    }).lean() as Promise<LoanType | null>;
 }
 
-export async function getUserByWallet(wallet: string, lsaAddress?: string) {
+export async function getUserByWallet(wallet: string, lsaAddress?: string): Promise<LoanType[]> {
     return lsaAddress
-        ? Loan.find(
+        ? (LoanModel.find(
               {
                   wallet,
                   lsaAddress,
               },
               { _id: 0, __v: 0 }
-          ).lean()
-        : Loan.find(
+          ).lean() as Promise<LoanType[]>)
+        : (LoanModel.find(
               {
                   wallet,
               },
               { _id: 0, __v: 0 }
-          ).lean();
+          ).lean() as Promise<LoanType[]>);
 }
 
-export async function getAllLoans() {
-    return Loan.find().lean();
+export async function getAllLoans(): Promise<LoanType[]> {
+    return LoanModel.find().lean() as Promise<LoanType[]>;
 }
 
 export async function createLoan({
@@ -45,7 +46,7 @@ export async function createLoan({
     salt: string;
     btcPrice: number;
 }) {
-    const newLoan = new Loan({
+    const newLoan = new LoanModel({
         wallet,
         lsaAddress,
         collateral,
@@ -57,6 +58,67 @@ export async function createLoan({
     return newLoan.save();
 }
 
-export async function addRepayment(txHash: Hex, lsaAddress: Address) {
-    return Loan.updateOne({ lsaAddress }, { $push: { repayments: txHash } });
+export async function addRepayment({
+    txHash,
+    lsaAddress,
+    amount,
+    paymentDate,
+    paymentType,
+    nextDueTimestamp,
+}: {
+    txHash: Hex;
+    lsaAddress: Address;
+    amount: string;
+    paymentDate: number;
+    paymentType: 'regular' | 'microLiquidation';
+    nextDueTimestamp?: number;
+}) {
+    return LoanModel.updateOne(
+        { lsaAddress },
+        {
+            $push: {
+                repayments: {
+                    txHash,
+                    amount,
+                    paymentDate,
+                    paymentType,
+                    nextDueTimestamp,
+                },
+            },
+        }
+    );
+}
+
+export async function updateEarlyCloseDate({
+    lsaAddress,
+    closeDate,
+}: {
+    lsaAddress: Address;
+    closeDate: Date;
+}) {
+    return LoanModel.updateOne(
+        { lsaAddress },
+        {
+            $set: {
+                earlyCloseDate: closeDate,
+            },
+        }
+    );
+}
+
+export async function updateLiquidationDate({
+    lsaAddress,
+    liquidationDate,
+}: {
+    lsaAddress: Address;
+    liquidationDate: Date;
+}) {
+    return LoanModel.updateOne(
+        { lsaAddress },
+        {
+            $set: {
+                fullyLiquidatedDate: liquidationDate,
+            },
+        }
+    );
 }
