@@ -323,10 +323,6 @@ class InsuranceController {
             result,
         });
     }
-
-    public async getLend(request: FastifyRequest, reply: FastifyReply) {
-
-    }
 }
 
 export default InsuranceController;
