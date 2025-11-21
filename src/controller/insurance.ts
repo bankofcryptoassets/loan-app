@@ -31,7 +31,7 @@ type GetLsaParams = {
     lsa: string;
 };
 
-export class InsuranceController {
+class InsuranceController {
     constructor(
         private readonly deribitService: DeribitService,
         private readonly rpcService: Rpc,
@@ -140,9 +140,9 @@ export class InsuranceController {
 
         const [ats, vdtts, reserveData, loans, userSpecificLoans] =
             await Promise.all([
-                this.rpcService.getATokenTotalSupply(),
-                this.rpcService.getVdtTokenTotalSupply(),
-                this.rpcService.getAvailableBtcFromReserve(),
+                this.rpcService.getATokenUsdcTotalSupply(),
+                this.rpcService.getVdtUsdcTokenTotalSupply(),
+                this.rpcService.getCbbtcReserveData(),
                 getAllLoans(),
                 getUserByWallet(wallet),
             ]);
@@ -322,6 +322,10 @@ export class InsuranceController {
         return reply.code(200).send({
             result,
         });
+    }
+
+    public async getLend(request: FastifyRequest, reply: FastifyReply) {
+
     }
 }
 

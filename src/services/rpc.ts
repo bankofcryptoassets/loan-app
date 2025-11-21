@@ -1,5 +1,6 @@
 import { EAC_AGG_PROXY_ABI } from '../abis/eacAggregatorProxy.js';
 import { ProtocolConfig, RpcConfig } from '../types/config.js';
+import { LoanDataFromContract } from '../types/loan.js';
 import {
     Address,
     createPublicClient,
@@ -78,13 +79,6 @@ export class Rpc {
     }
 
     async getLoanByLsa(lsa: Address) {
-        // const res = await this.publicClient.readContract({
-        //     abi: LOAN_ABI,
-        //     address: this.config.contractAddresses.loan as Address,
-        //     functionName: 'getLoanByLSA',
-        //     args: [lsa],
-        // });
-        // return res;
         const [res, aTokenBalance, vdtTokenBalance] = await Promise.all([
             this.publicClient.readContract({
                 abi: LOAN_ABI,
@@ -94,18 +88,20 @@ export class Rpc {
             }),
             this.publicClient.readContract({
                 abi: erc20Abi,
-                address: this.config.contractAddresses.aToken as Address,
+                address: this.config.contractAddresses.aTokenCbbtc as Address,
                 functionName: 'balanceOf',
                 args: [lsa],
             }),
             this.publicClient.readContract({
                 abi: erc20Abi,
-                address: this.config.contractAddresses.vdtToken as Address,
+                address: this.config.contractAddresses.vdtTokenUsdc as Address,
                 functionName: 'balanceOf',
                 args: [lsa],
             }),
         ]);
-        return [res, aTokenBalance, vdtTokenBalance];
+
+        const loanData = res as LoanDataFromContract;
+        return [loanData, aTokenBalance, vdtTokenBalance] as const;
     }
 
     async fetchEstimationParams(deposit: number, loan: number) {
@@ -135,29 +131,85 @@ export class Rpc {
         });
     }
 
-    async getATokenTotalSupply() {
+    // USDC Token Functions
+    async getATokenUsdcTotalSupply() {
         return this.publicClient.readContract({
-            address: this.config.contractAddresses.aToken as Address,
+            address: this.config.contractAddresses.aTokenUsdc as Address,
             abi: erc20Abi,
             functionName: 'totalSupply',
         });
     }
 
-    async getVdtTokenTotalSupply() {
+    async getVdtUsdcTokenTotalSupply() {
         return this.publicClient.readContract({
-            address: this.config.contractAddresses.vdtToken as Address,
+            address: this.config.contractAddresses.vdtTokenUsdc as Address,
             abi: erc20Abi,
             functionName: 'totalSupply',
             args: [],
         });
     }
 
-    async getAvailableBtcFromReserve() {
+    async getUsdcBalanceOfUsdcAToken() {
+        return this.publicClient.readContract({
+            address: this.config.contractAddresses.usdc as Address,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [this.config.contractAddresses.aTokenUsdc as Address],
+        });
+    }
+
+    // cbBTC Token Functions
+    async getATokenCbbtcTotalSupply() {
+        return this.publicClient.readContract({
+            address: this.config.contractAddresses.aTokenCbbtc as Address,
+            abi: erc20Abi,
+            functionName: 'totalSupply',
+        });
+    }
+
+    async getVdtCbbtcTokenTotalSupply() {
+        return this.publicClient.readContract({
+            address: this.config.contractAddresses.vdtTokenCbbtc as Address,
+            abi: erc20Abi,
+            functionName: 'totalSupply',
+            args: [],
+        });
+    }
+
+    async getCbbtcBalanceOfCbbtcAToken() {
+        return this.publicClient.readContract({
+            address: this.config.contractAddresses.cbbtc as Address,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [this.config.contractAddresses.aTokenCbbtc as Address],
+        });
+    }
+
+    // Reserve Data Functions
+    async getCbbtcReserveData() {
         return this.publicClient.readContract({
             abi: LENDING_POOL,
-            address: '0x64688EAa8cBC3029D303b61D7e77f986E34742b3',
+            address: this.config.contractAddresses.lendingPool as Address,
             functionName: 'getReserveData',
-            args: ['0x562937072309F8c929206a58e72732dFCA5b67D6'],
+            args: [this.config.contractAddresses.cbbtc as Address],
+        });
+    }
+
+    async getUsdcReserveData() {
+        return this.publicClient.readContract({
+            abi: LENDING_POOL,
+            address: this.config.contractAddresses.lendingPool as Address,
+            functionName: 'getReserveData',
+            args: [this.config.contractAddresses.usdc as Address],
+        });
+    }
+
+    async getUserAUsdcBalance(userAddress: Address) {
+        return this.publicClient.readContract({
+            address: this.config.contractAddresses.aTokenUsdc as Address,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [userAddress]
         });
     }
 

@@ -39,12 +39,6 @@ type LoanCreatedEventAbi = {
             internalType: 'uint256';
             name: 'collateralAmount';
             type: 'uint256';
-        },
-        {
-            indexed: false;
-            internalType: 'uint256';
-            name: 'createdAt';
-            type: 'uint256';
         }
     ];
     name: 'Loan__LoanCreated';
@@ -250,34 +244,39 @@ export class Listeners {
                     typeof value === 'bigint' ? value.toString() : value
                 )}`
             );
-            const tx = await this.rpcService.getTxReceipt(ev.transactionHash);
-            const btcPrice = await this.rpcService.getBtcPrice();
-            // console.log('tx:: ', tx);
-            const { lsa, borrower, collateralAmount, loanAmount, createdAt } =
-                ev.args;
-            const deposit = BigInt(tx.logs[0].data).toString();
-            console.log('deposit:: ', deposit);
-            if (
-                !borrower ||
-                !lsa ||
-                !collateralAmount ||
-                !loanAmount ||
-                !createdAt
-            ) {
+
+            const { lsa, borrower, collateralAmount, loanAmount } = ev.args;
+
+            if (!borrower || !lsa || !collateralAmount || !loanAmount) {
                 throw new Error(
                     'Invalid arguments received from events: ' +
                         JSON.stringify(ev)
                 );
             }
+
+            // Get loan data from contract using getLoanByLSA view function
+            const [loanData, aTokenBalance, vdtTokenBalance] =
+                await this.rpcService.getLoanByLsa(lsa);
+
+            const btcPrice = await this.rpcService.getBtcPrice();
+            const tx = await this.rpcService.getTxReceipt(ev.transactionHash);
+
+            // Get block timestamp to use as createdAt
+            const block = await this.rpcService.publicClient.getBlock({
+                blockNumber: ev.blockNumber,
+            });
+            const createdAt = block.timestamp.toString();
+
             await createLoan({
                 wallet: getAddress(borrower),
                 lsaAddress: getAddress(lsa),
-                collateral: collateralAmount.toString(),
-                deposit,
-                loan: loanAmount.toString(),
-                salt: createdAt.toString(),
+                collateral: loanData.collateralAmount.toString(),
+                deposit: loanData.depositAmount.toString(),
+                loan: loanData.loanAmount.toString(),
+                salt: createdAt,
                 btcPrice,
             });
+
             await saveLoanInitTx({
                 lsaAddress: getAddress(lsa),
                 loanInitTx: JSON.stringify(tx, (_key, value) =>
@@ -285,7 +284,9 @@ export class Listeners {
                 ),
             });
 
-            combinedLogger.info(`Created Loan: ${lsa} for wallet: ${borrower}`);
+            combinedLogger.info(
+                `Created Loan: ${lsa} for wallet: ${borrower}, Deposit: ${loanData.depositAmount.toString()}, Loan: ${loanData.loanAmount.toString()}`
+            );
         } catch (error) {
             console.log('Error processing event::: ', error);
             combinedLogger.error(

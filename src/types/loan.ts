@@ -43,3 +43,16 @@ export type LsaDetail = {
     lastPaymentTimestamp: bigint;
     status: number;
 };
+
+export type LoanDataFromContract = {
+    borrower: `0x${string}`;
+    depositAmount: bigint;
+    loanAmount: bigint;
+    collateralAmount: bigint;
+    estimatedMonthlyPayment: bigint;
+    duration: bigint;
+    createdAt: bigint;
+    insuranceID: bigint;
+    lastPaymentTimestamp: bigint;
+    status: number;
+};
