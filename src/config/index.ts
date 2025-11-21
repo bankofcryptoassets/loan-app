@@ -66,9 +66,13 @@ class Config {
             chainId: this.getEnvNumber('CHAIN_ID'),
             contractAddresses: {
                 loan: this.getEnvString('ADDR_LOAN'),
-                aToken: this.getEnvString('ADDR_A_TOKEN'),
-                vdtToken: this.getEnvString('ADDR_VDT_TOKEN'),
+                aTokenUsdc: this.getEnvString('ADDR_A_TOKEN_USDC'),
+                aTokenCbbtc: this.getEnvString('ADDR_A_TOKEN_CBBTC'),
+                vdtTokenUsdc: this.getEnvString('ADDR_VDT_TOKEN_USDC'),
+                vdtTokenCbbtc: this.getEnvString('ADDR_VDT_TOKEN_CBBTC'),
                 lendingPool: this.getEnvString('ADDR_LENDING_POOL'),
+                usdc: this.getEnvString('ADDR_USDC'),
+                cbbtc: this.getEnvString('ADDR_CBBTC'),
             },
         };
 

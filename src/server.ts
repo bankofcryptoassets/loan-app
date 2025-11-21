@@ -7,7 +7,7 @@ import cors from '@fastify/cors';
 import mongoose from 'mongoose';
 import { ErrorResponse } from './types/index.js';
 import Config from './config/index.js';
-import InsuranceController from './controller/insurance.js';
+import { InsuranceController, LendController } from './controller';
 import { combinedLogger } from './utils/logger.js';
 import { AxiosService } from './services/axios.js';
 import { DeribitService } from './services/deribit.js';
@@ -32,7 +32,10 @@ fastify.setErrorHandler(
 );
 
 // initialize routes
-const initializeRoutes = (insuranceController: InsuranceController) => {
+const initializeRoutes = (
+    insuranceController: InsuranceController,
+    lendController: LendController
+) => {
     // health check
     fastify.get('/health', (_req: FastifyRequest, res: FastifyReply) => {
         return res.send({
@@ -64,6 +67,18 @@ const initializeRoutes = (insuranceController: InsuranceController) => {
     fastify.get(
         '/api/lsa',
         insuranceController.getLsa.bind(insuranceController)
+    );
+
+    // lend pool stats
+    fastify.get(
+        '/api/lend',
+        lendController.getUSDCPoolStats.bind(lendController)
+    );
+
+    // user aUSDC balance
+    fastify.get(
+        '/api/lend/balance/:address',
+        lendController.getUserAUsdcBalance.bind(lendController)
     );
 };
 
@@ -127,9 +142,10 @@ const start = async (): Promise<void> => {
             rpcService,
             protocolConfig
         );
+        const lendController = new LendController(rpcService);
 
         //initialize routes
-        initializeRoutes(insuranceController);
+        initializeRoutes(insuranceController, lendController);
         combinedLogger.info(`Initialized Routes`);
 
         //initialize listeners

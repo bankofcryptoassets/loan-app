@@ -10,7 +10,7 @@ import {
 import { Address, formatUnits, isAddress } from 'viem';
 import { serializeBigInt } from '../utils/bigint.js';
 import { monthsToSeconds, unixToDateString } from '../utils/date.js';
-import { Loan, LsaDetail } from '../types/loan.js';
+import { Loan, LsaDetail, RepaymentDetail } from '../types/loan.js';
 
 type EstimateReqParams = {
     qty: string;
@@ -31,7 +31,7 @@ type GetLsaParams = {
     lsa: string;
 };
 
-export class InsuranceController {
+class InsuranceController {
     constructor(
         private readonly deribitService: DeribitService,
         private readonly rpcService: Rpc,
@@ -140,9 +140,9 @@ export class InsuranceController {
 
         const [ats, vdtts, reserveData, loans, userSpecificLoans] =
             await Promise.all([
-                this.rpcService.getATokenTotalSupply(),
-                this.rpcService.getVdtTokenTotalSupply(),
-                this.rpcService.getAvailableBtcFromReserve(),
+                this.rpcService.getATokenUsdcTotalSupply(),
+                this.rpcService.getVdtUsdcTokenTotalSupply(),
+                this.rpcService.getCbbtcReserveData(),
                 getAllLoans(),
                 getUserByWallet(wallet),
             ]);
@@ -189,17 +189,48 @@ export class InsuranceController {
         delete partialLoanDetail.deposit;
         delete partialLoanDetail.loan;
         delete partialLoanDetail.collateral;
-        delete partialLoanDetail.nextDueTimestamp;
-        delete partialLoanDetail.lastDueTimestamp;
+        delete partialLoanDetail.lastPaymentTimestamp;
         delete partialLoanDetail.duration;
+
+        const emi = Number(formatUnits(lsaDetail.estimatedMonthlyPayment, 6));
+        const duration = Number(lsaDetail.duration);
+        const principal = Number(formatUnits(lsaDetail.loanAmount, 6));
+
+        // Interest Estimated = (EMI × duration) - Principal
+        const interestEstimated = emi * duration - principal;
+
+        // Total Loan = Principal + Interest Estimated
+        const totalLoan = principal + interestEstimated;
+
+        // Total Paid = Sum of all repayment amounts
+        const totalPaid = (lsaDetail.repayments ?? []).reduce(
+            (sum: number, repayment: RepaymentDetail): number => {
+                // repayment.amount is stored as string (BigInt from contract, 6 decimals for USDC)
+                const amountInUsdc = Number(repayment.amount) / 1e6;
+                return sum + amountInUsdc;
+            },
+            0
+        );
+
+        // Calculate next due based on lastPaymentTimestamp + 30 days
+        const REPAYMENT_INTERVAL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+        const lastPayment = Number(lsaDetail.lastPaymentTimestamp);
+        const nextDueTimestamp = lastPayment > 0
+            ? lastPayment + REPAYMENT_INTERVAL_SECONDS
+            : Number(lsaDetail.createdAt) + REPAYMENT_INTERVAL_SECONDS;
+
         return {
             ...partialLoanDetail,
+            principal: principal.toFixed(6),
+            interestEstimated: interestEstimated.toFixed(6),
+            totalLoan: totalLoan.toFixed(6),
+            totalPaid: totalPaid.toFixed(6),
             loanStart: unixToDateString(+lsaDetail.salt),
             loanEnd: unixToDateString(
                 +lsaDetail.salt + monthsToSeconds(Number(lsaDetail.duration))
             ),
-            nextDue: unixToDateString(Number(lsaDetail.nextDueTimestamp)),
-            lastDue: unixToDateString(Number(lsaDetail.lastDueTimestamp)),
+            nextDue: unixToDateString(nextDueTimestamp),
+            lastPayment: lastPayment > 0 ? unixToDateString(lastPayment) : null,
             estimatedMonthlyPayment: formatUnits(
                 lsaDetail.estimatedMonthlyPayment,
                 6
@@ -210,6 +241,12 @@ export class InsuranceController {
                 Number(formatUnits(lsaDetail.acbbtcBalance, 8)),
             btcPrice,
             repayments: lsaDetail.repayments ?? [],
+            earlyCloseDate: lsaDetail.earlyCloseDate
+                ? lsaDetail.earlyCloseDate.toISOString()
+                : null,
+            fullyLiquidatedDate: lsaDetail.fullyLiquidatedDate
+                ? lsaDetail.fullyLiquidatedDate.toISOString()
+                : null,
         };
     }
 
