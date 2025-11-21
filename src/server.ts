@@ -7,7 +7,7 @@ import cors from '@fastify/cors';
 import mongoose from 'mongoose';
 import { ErrorResponse } from './types/index.js';
 import Config from './config/index.js';
-import { InsuranceController, LendController } from './controller';
+import { InsuranceController, LendController } from './controller/index.js';
 import { combinedLogger } from './utils/logger.js';
 import { AxiosService } from './services/axios.js';
 import { DeribitService } from './services/deribit.js';
