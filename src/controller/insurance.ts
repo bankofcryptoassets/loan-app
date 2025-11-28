@@ -235,11 +235,14 @@ class InsuranceController {
         return this.rpcService
             .getLoanByLsa(loanItem.lsaAddress as Address)
             .then((data) => {
+                const { createdAt, ...contractData } = data[0];
+
                 return {
-                    ...(data[0] as Exclude<typeof data[0], bigint>),
+                    ...loanItem,
+                    ...contractData, // Contract data overrides DB data
+                    contractCreatedAt: createdAt,
                     acbbtcBalance: data[1] as bigint,
                     vdtTokenBalance: data[2] as bigint,
-                    ...loanItem,
                 };
             });
     }
@@ -279,7 +282,8 @@ class InsuranceController {
         const nextDueTimestamp =
             lastPayment > 0
                 ? lastPayment + REPAYMENT_INTERVAL_SECONDS
-                : Number(lsaDetail.createdAt) + REPAYMENT_INTERVAL_SECONDS;
+                : Number(lsaDetail.contractCreatedAt) +
+                  REPAYMENT_INTERVAL_SECONDS;
 
         return {
             ...partialLoanDetail,
@@ -337,7 +341,7 @@ class InsuranceController {
 
             const {
                 acbbtcBalance: aTokenBalanceSum,
-                vdtTokenBalance: _vdtTokenBalanceSum,
+                vdtTokenBalance: vdtTokenBalanceSum,
             } = lsaDetails.reduce(
                 (acc, obj) => {
                     return {
@@ -355,8 +359,8 @@ class InsuranceController {
                     btc: Number(formatUnits(aTokenBalanceSum, 8)),
                 },
                 totalBorrowedAssets: {
-                    usd: Number(formatUnits(aTokenBalanceSum, 8)) * btcPrice,
-                    btc: Number(formatUnits(aTokenBalanceSum, 8)),
+                    usd: Number(formatUnits(vdtTokenBalanceSum, 8)) * btcPrice,
+                    btc: Number(formatUnits(vdtTokenBalanceSum, 8)),
                 },
                 loans: serializeBigInt(
                     lsaDetails.map((lsaDetail) =>

@@ -2,8 +2,7 @@ export type RepaymentDetail = {
     txHash: string;
     amount: string;
     paymentDate: number;
-    paymentType: 'regular' | 'microLiquidation';
-    nextDueTimestamp?: number;
+    paymentType: 'regular' | 'microLiquidation' | 'autoRepayment';
 };
 
 export type Loan = {
@@ -12,11 +11,18 @@ export type Loan = {
     deposit: string;
     loan: string;
     collateral: string;
+    estimatedMonthlyPayment: string;
     priceAtBuy: number;
     repayments?: RepaymentDetail[] | null | undefined;
     salt: string;
+    createdAt: Date;
+    updatedAt: Date;
     earlyCloseDate?: Date | null;
     fullyLiquidatedDate?: Date | null;
+    autoRepayment?: {
+        enabled: boolean;
+        enabledAt?: Date;
+    };
 };
 
 export type LsaDetail = {
@@ -28,8 +34,14 @@ export type LsaDetail = {
     priceAtBuy: number;
     repayments?: RepaymentDetail[] | null | undefined;
     salt: string;
+    createdAt: Date; // From MongoDB timestamps
+    updatedAt: Date;
     earlyCloseDate?: Date | null;
     fullyLiquidatedDate?: Date | null;
+    autoRepayment?: {
+        enabled: boolean;
+        enabledAt?: Date;
+    };
     acbbtcBalance: bigint;
     vdtTokenBalance: bigint;
     borrower: `0x${string}`;
@@ -38,7 +50,7 @@ export type LsaDetail = {
     collateralAmount: bigint;
     estimatedMonthlyPayment: bigint;
     duration: bigint;
-    createdAt: bigint;
+    contractCreatedAt: bigint; // From contract to avoid conflict
     insuranceID: bigint;
     lastPaymentTimestamp: bigint;
     status: number;

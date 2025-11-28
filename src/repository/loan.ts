@@ -2,13 +2,18 @@ import { Address, Hex } from 'viem';
 import { Loan as LoanModel } from '../models/Loan.js';
 import { Loan as LoanType } from '../types/loan.js';
 
-export async function getUserByLsa(lsaAddress: string): Promise<LoanType | null> {
+export async function getUserByLsa(
+    lsaAddress: string
+): Promise<LoanType | null> {
     return LoanModel.findOne({
         lsaAddress,
     }).lean() as Promise<LoanType | null>;
 }
 
-export async function getUserByWallet(wallet: string, lsaAddress?: string): Promise<LoanType[]> {
+export async function getUserByWallet(
+    wallet: string,
+    lsaAddress?: string
+): Promise<LoanType[]> {
     return lsaAddress
         ? (LoanModel.find(
               {
@@ -35,6 +40,7 @@ export async function createLoan({
     lsaAddress,
     deposit,
     collateral,
+    estimatedMonthlyPayment,
     btcPrice,
     salt,
 }: {
@@ -43,6 +49,7 @@ export async function createLoan({
     collateral: string;
     deposit: string;
     loan: string;
+    estimatedMonthlyPayment: string;
     salt: string;
     btcPrice: number;
 }) {
@@ -52,6 +59,7 @@ export async function createLoan({
         collateral,
         deposit,
         loan,
+        estimatedMonthlyPayment,
         salt,
         priceAtBuy: btcPrice,
     });
@@ -64,14 +72,12 @@ export async function addRepayment({
     amount,
     paymentDate,
     paymentType,
-    nextDueTimestamp,
 }: {
     txHash: Hex;
     lsaAddress: Address;
     amount: string;
     paymentDate: number;
-    paymentType: 'regular' | 'microLiquidation';
-    nextDueTimestamp?: number;
+    paymentType: 'regular' | 'microLiquidation' | 'autoRepayment';
 }) {
     return LoanModel.updateOne(
         { lsaAddress },
@@ -82,7 +88,6 @@ export async function addRepayment({
                     amount,
                     paymentDate,
                     paymentType,
-                    nextDueTimestamp,
                 },
             },
         }
@@ -121,4 +126,43 @@ export async function updateLiquidationDate({
             },
         }
     );
+}
+
+export async function enableAutoRepayment({
+    lsaAddress,
+}: {
+    lsaAddress: Address;
+}) {
+    return LoanModel.updateOne(
+        { lsaAddress },
+        {
+            $set: {
+                'autoRepayment.enabled': true,
+                'autoRepayment.enabledAt': new Date(),
+            },
+        }
+    );
+}
+
+export async function disableAutoRepayment({
+    lsaAddress,
+}: {
+    lsaAddress: Address;
+}) {
+    return LoanModel.updateOne(
+        { lsaAddress },
+        {
+            $set: {
+                'autoRepayment.enabled': false,
+            },
+        }
+    );
+}
+
+export async function getLoansWithAutoRepaymentEnabled(): Promise<LoanType[]> {
+    return LoanModel.find({
+        'autoRepayment.enabled': true,
+        earlyCloseDate: null,
+        fullyLiquidatedDate: null,
+    }).lean() as Promise<LoanType[]>;
 }

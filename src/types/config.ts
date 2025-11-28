@@ -32,8 +32,10 @@ export interface RpcConfig {
     mainnetUrl: string;
     url: string;
     chainId: number;
+    executorPrivateKey: string; // Private key for auto-repayment executor wallet
     contractAddresses: {
         loan: string;
+        autoRepayment: string;
         aTokenUsdc: string;
         aTokenCbbtc: string;
         vdtTokenUsdc: string;
@@ -50,6 +52,10 @@ export interface ProtocolConfig {
     protocolLoanInitFee: string;
 }
 
+export interface SchedulerConfig {
+    cronSchedule: string;
+}
+
 export interface AppConfig {
     server: ServerConfig;
     database: DatabaseConfig;
@@ -57,6 +63,7 @@ export interface AppConfig {
     coingecko: CoinGeckoConfig;
     rpc: RpcConfig;
     protocol: ProtocolConfig;
+    scheduler: SchedulerConfig;
     jwt?: {
         secret: string;
         expiresIn: string;
