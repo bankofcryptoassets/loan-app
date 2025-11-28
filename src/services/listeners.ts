@@ -9,9 +9,12 @@ import {
     getUserByLsa,
     updateEarlyCloseDate,
     updateLiquidationDate,
+    enableAutoRepayment,
+    disableAutoRepayment,
 } from '../repository/loan.js';
 import { combinedLogger } from '../utils/logger.js';
 import { saveLoanInitTx } from '../repository/loanInitTx.js';
+import { AUTO_REPAYMENT_ABI } from '../abis/autoRepayment.js';
 
 type LoanCreatedEventAbi = {
     anonymous: false;
@@ -179,6 +182,46 @@ type LiquidationCallEventAbi = {
     type: 'event';
 };
 
+type AutoRepaymentCreatedEventAbi = {
+    anonymous: false;
+    inputs: [
+        {
+            indexed: true;
+            internalType: 'address';
+            name: 'lsa';
+            type: 'address';
+        },
+        {
+            indexed: true;
+            internalType: 'address';
+            name: 'user';
+            type: 'address';
+        }
+    ];
+    name: 'AutoRepayment__RepaymentCreated';
+    type: 'event';
+};
+
+type AutoRepaymentCancelledEventAbi = {
+    anonymous: false;
+    inputs: [
+        {
+            indexed: true;
+            internalType: 'address';
+            name: 'lsa';
+            type: 'address';
+        },
+        {
+            indexed: true;
+            internalType: 'address';
+            name: 'user';
+            type: 'address';
+        }
+    ];
+    name: 'AutoRepayment__RepaymentCancelled';
+    type: 'event';
+};
+
 export class Listeners {
     constructor(private rpcService: Rpc, private rpcConfig: RpcConfig) {}
 
@@ -232,6 +275,26 @@ export class Listeners {
                 this.handleFullLiquidationEvent(ev);
             },
         });
+
+        const _unwatch6 = this.rpcService.publicClient.watchContractEvent({
+            address: this.rpcConfig.contractAddresses.autoRepayment as Address,
+            abi: AUTO_REPAYMENT_ABI,
+            eventName: 'AutoRepayment__RepaymentCreated',
+            onLogs: async (args) => {
+                const ev = args[args.length - 1];
+                this.handleAutoRepaymentCreated(ev);
+            },
+        });
+
+        const _unwatch7 = this.rpcService.publicClient.watchContractEvent({
+            address: this.rpcConfig.contractAddresses.autoRepayment as Address,
+            abi: AUTO_REPAYMENT_ABI,
+            eventName: 'AutoRepayment__RepaymentCancelled',
+            onLogs: async (args) => {
+                const ev = args[args.length - 1];
+                this.handleAutoRepaymentCancelled(ev);
+            },
+        });
     }
 
     private async handleLoanCreatedEvent(
@@ -255,8 +318,7 @@ export class Listeners {
             }
 
             // Get loan data from contract using getLoanByLSA view function
-            const [loanData, aTokenBalance, vdtTokenBalance] =
-                await this.rpcService.getLoanByLsa(lsa);
+            const [loanData] = await this.rpcService.getLoanByLsa(lsa);
 
             const btcPrice = await this.rpcService.getBtcPrice();
             const tx = await this.rpcService.getTxReceipt(ev.transactionHash);
@@ -273,6 +335,8 @@ export class Listeners {
                 collateral: loanData.collateralAmount.toString(),
                 deposit: loanData.depositAmount.toString(),
                 loan: loanData.loanAmount.toString(),
+                estimatedMonthlyPayment:
+                    loanData.estimatedMonthlyPayment.toString(),
                 salt: createdAt,
                 btcPrice,
             });
@@ -303,63 +367,105 @@ export class Listeners {
     private async handleLoanRepaidEvent(
         ev: Log<bigint, number, false, LoanRepaidEventAbi>
     ) {
-        if (!ev.args.lsa || !ev.args.amountRepaid) {
-            // todo setup alerts if lsa or amountRepaid is not defined in event data
-            return;
+        try {
+            if (!ev.args.lsa || !ev.args.amountRepaid) {
+                // todo setup alerts if lsa or amountRepaid is not defined in event data
+                return;
+            }
+
+            const lsaDetails = await getUserByLsa(ev.args.lsa);
+
+            if (!lsaDetails) {
+                // todo setup alerts if lsa is not found in db
+                // todo implement fallbacks to process all loans with index=${lsa}
+                return;
+            }
+
+            // Get transaction details to check if it came from AutoRepayment contract
+            const tx = await this.rpcService.publicClient.getTransaction({
+                hash: ev.transactionHash,
+            });
+
+            // Get block timestamp
+            const block = await this.rpcService.publicClient.getBlock({
+                blockNumber: ev.blockNumber,
+            });
+
+            // Check if the transaction was sent to the AutoRepayment contract
+            const isAutoRepayment =
+                tx.to?.toLowerCase() ===
+                this.rpcConfig.contractAddresses.autoRepayment.toLowerCase();
+
+            const paymentType: 'regular' | 'autoRepayment' = isAutoRepayment
+                ? 'autoRepayment'
+                : 'regular';
+
+            await addRepayment({
+                txHash: ev.transactionHash,
+                lsaAddress: ev.args.lsa,
+                amount: ev.args.amountRepaid.toString(),
+                paymentDate: Number(block.timestamp),
+                paymentType,
+            });
+
+            combinedLogger.info(
+                `Loan repayment recorded: LSA=${
+                    ev.args.lsa
+                }, Amount=${ev.args.amountRepaid.toString()}, Type=${paymentType}`
+            );
+        } catch (error) {
+            combinedLogger.error(
+                `Error processing Loan__LoanRepaid event: ${JSON.stringify(
+                    error,
+                    Object.getOwnPropertyNames(error)
+                )}`
+            );
         }
-
-        const lsaDetails = await getUserByLsa(ev.args.lsa);
-
-        if (!lsaDetails) {
-            // todo setup alerts if lsa is not found in db
-            // todo implement fallbacks to process all loans with index=${lsa}
-            return;
-        }
-
-        await addRepayment({
-            txHash: ev.transactionHash,
-            lsaAddress: ev.args.lsa,
-            amount: ev.args.amountRepaid.toString(),
-            paymentDate: Number(ev.blockNumber), // Block number as timestamp proxy
-            paymentType: 'regular',
-        });
-
-        combinedLogger.info(
-            `Loan repayment recorded: LSA=${
-                ev.args.lsa
-            }, Amount=${ev.args.amountRepaid.toString()}`
-        );
     }
 
     private async handleMicroLiquidationEvent(
         ev: Log<bigint, number, false, MicroLiquidationCallEventAbi>
     ) {
-        if (!ev.args.user || !ev.args.debtToCover) {
-            // todo setup alerts if user or debtToCover is not defined in event data
-            return;
+        try {
+            if (!ev.args.user || !ev.args.debtToCover) {
+                // todo setup alerts if user or debtToCover is not defined in event data
+                return;
+            }
+
+            const lsa = ev.args.user; // In micro liquidation, 'user' is the LSA address
+            const lsaDetails = await getUserByLsa(lsa);
+
+            if (!lsaDetails) {
+                // todo setup alerts if lsa is not found in db
+                return;
+            }
+
+            // Get block timestamp
+            const block = await this.rpcService.publicClient.getBlock({
+                blockNumber: ev.blockNumber,
+            });
+
+            await addRepayment({
+                txHash: ev.transactionHash,
+                lsaAddress: lsa,
+                amount: ev.args.debtToCover.toString(),
+                paymentDate: Number(block.timestamp),
+                paymentType: 'microLiquidation',
+            });
+
+            combinedLogger.info(
+                `Micro liquidation recorded: LSA=${lsa}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${
+                    ev.args.liquidator
+                }`
+            );
+        } catch (error) {
+            combinedLogger.error(
+                `Error processing MicroLiquidationCall event: ${JSON.stringify(
+                    error,
+                    Object.getOwnPropertyNames(error)
+                )}`
+            );
         }
-
-        const lsa = ev.args.user; // In micro liquidation, 'user' is the LSA address
-        const lsaDetails = await getUserByLsa(lsa);
-
-        if (!lsaDetails) {
-            // todo setup alerts if lsa is not found in db
-            return;
-        }
-
-        await addRepayment({
-            txHash: ev.transactionHash,
-            lsaAddress: lsa,
-            amount: ev.args.debtToCover.toString(),
-            paymentDate: Number(ev.blockNumber), // Block number as timestamp proxy
-            paymentType: 'microLiquidation',
-        });
-
-        combinedLogger.info(
-            `Micro liquidation recorded: LSA=${lsa}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${
-                ev.args.liquidator
-            }`
-        );
     }
 
     private async handleLoanClosedEvent(
@@ -456,17 +562,81 @@ export class Listeners {
         }
     }
 
-    private handleEvent(
-        ev:
-            | Log<bigint, number, false, LoanCreatedEventAbi>
-            | Log<bigint, number, false, LoanRepaidEventAbi>
+    private async handleAutoRepaymentCreated(
+        ev: Log<bigint, number, false, AutoRepaymentCreatedEventAbi>
     ) {
-        switch (ev.eventName) {
-            case 'Loan__LoanCreated':
-                this.handleLoanCreatedEvent(ev);
-                break;
-            case 'Loan__LoanRepaid':
-                this.handleLoanRepaidEvent(ev);
+        try {
+            if (!ev.args.lsa) {
+                combinedLogger.error(
+                    'AutoRepayment__RepaymentCreated event missing required fields'
+                );
+                return;
+            }
+
+            const lsa = ev.args.lsa;
+
+            const lsaDetails = await getUserByLsa(lsa);
+
+            if (!lsaDetails) {
+                combinedLogger.error(
+                    `AutoRepayment__RepaymentCreated: LSA ${lsa} not found in database`
+                );
+                return;
+            }
+
+            await enableAutoRepayment({
+                lsaAddress: lsa,
+            });
+
+            combinedLogger.info(
+                `Auto-repayment enabled: LSA=${lsa}, User=${ev.args.user}`
+            );
+        } catch (error) {
+            combinedLogger.error(
+                `Error processing AutoRepayment__RepaymentCreated event: ${JSON.stringify(
+                    error,
+                    Object.getOwnPropertyNames(error)
+                )}`
+            );
+        }
+    }
+
+    private async handleAutoRepaymentCancelled(
+        ev: Log<bigint, number, false, AutoRepaymentCancelledEventAbi>
+    ) {
+        try {
+            if (!ev.args.lsa) {
+                combinedLogger.error(
+                    'AutoRepayment__RepaymentCancelled event missing required fields'
+                );
+                return;
+            }
+
+            const lsa = ev.args.lsa;
+
+            const lsaDetails = await getUserByLsa(lsa);
+
+            if (!lsaDetails) {
+                combinedLogger.error(
+                    `AutoRepayment__RepaymentCancelled: LSA ${lsa} not found in database`
+                );
+                return;
+            }
+
+            await disableAutoRepayment({
+                lsaAddress: lsa,
+            });
+
+            combinedLogger.info(
+                `Auto-repayment disabled: LSA=${lsa}, User=${ev.args.user}`
+            );
+        } catch (error) {
+            combinedLogger.error(
+                `Error processing AutoRepayment__RepaymentCancelled event: ${JSON.stringify(
+                    error,
+                    Object.getOwnPropertyNames(error)
+                )}`
+            );
         }
     }
 }

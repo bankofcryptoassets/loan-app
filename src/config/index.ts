@@ -1,5 +1,10 @@
 import dotenv from 'dotenv';
-import { AppConfig, ServerConfig, DatabaseConfig } from '../types/config';
+import {
+    AppConfig,
+    ServerConfig,
+    DatabaseConfig,
+    SchedulerConfig,
+} from '../types/config';
 dotenv.config();
 
 class Config {
@@ -64,8 +69,10 @@ class Config {
             mainnetUrl: this.getEnvString('RPC_URL_MAINNET'),
             url: this.getEnvString('RPC_URL'),
             chainId: this.getEnvNumber('CHAIN_ID'),
+            executorPrivateKey: this.getEnvString('EXECUTOR_PRIVATE_KEY'),
             contractAddresses: {
                 loan: this.getEnvString('ADDR_LOAN'),
+                autoRepayment: this.getEnvString('ADDR_AUTO_REPAYMENT'),
                 aTokenUsdc: this.getEnvString('ADDR_A_TOKEN_USDC'),
                 aTokenCbbtc: this.getEnvString('ADDR_A_TOKEN_CBBTC'),
                 vdtTokenUsdc: this.getEnvString('ADDR_VDT_TOKEN_USDC'),
@@ -82,6 +89,13 @@ class Config {
             protocolLoanInitFee: this.getEnvString('PROTOCOL_LOAN_INIT_FEE'),
         };
 
+        const schedulerConfig: SchedulerConfig = {
+            cronSchedule: this.getEnvString(
+                'AUTO_REPAYMENT_CRON_SCHEDULE',
+                '0 */6 * * *'
+            ), // Default: every 6 hours
+        };
+
         return {
             server: serverConfig,
             database: databaseConfig,
@@ -89,6 +103,7 @@ class Config {
             coingecko: coingeckoConfig,
             rpc: rpcConfig,
             protocol: protocolConfig,
+            scheduler: schedulerConfig,
         };
     }
 

@@ -14,6 +14,7 @@ import { DeribitService } from './services/deribit.js';
 import CoinGecko from './services/coingecko.js';
 import { Rpc } from './services/rpc.js';
 import { Listeners } from './services/listeners.js';
+import { AutoRepaymentScheduler } from './services/autoRepaymentScheduler.js';
 
 const fastify: FastifyInstance = Fastify({
     logger: true,
@@ -86,6 +87,10 @@ const initializeListeners = async (listenersService: Listeners) => {
     await listenersService.init();
 };
 
+const initializeScheduler = (schedulerService: AutoRepaymentScheduler) => {
+    schedulerService.start();
+};
+
 // Start server
 const start = async (): Promise<void> => {
     try {
@@ -103,6 +108,7 @@ const start = async (): Promise<void> => {
             coingecko: coingeckoConfig,
             rpc: rpcConfig,
             protocol: protocolConfig,
+            scheduler: schedulerConfig,
         } = config.getConfig();
 
         // connect Mongoose (required for User model)
@@ -125,6 +131,10 @@ const start = async (): Promise<void> => {
         const _coingeckoService = new CoinGecko(coingeckoConfig, axiosService);
         const rpcService = new Rpc(rpcConfig, protocolConfig);
         const listenersService = new Listeners(rpcService, rpcConfig);
+        const schedulerService = new AutoRepaymentScheduler(
+            rpcService,
+            schedulerConfig.cronSchedule
+        );
 
         // controllers
         const insuranceController = new InsuranceController(
@@ -141,6 +151,11 @@ const start = async (): Promise<void> => {
         //initialize listeners
         await initializeListeners(listenersService);
         combinedLogger.info(`Initialized Listeners`);
+
+        //initialize scheduler
+        schedulerInstance = schedulerService;
+        initializeScheduler(schedulerService);
+        combinedLogger.info(`Initialized Auto-Repayment Scheduler`);
 
         const { port, host } = config.server;
 
@@ -159,6 +174,9 @@ const start = async (): Promise<void> => {
     }
 };
 
+// Store scheduler instance for shutdown
+let schedulerInstance: AutoRepaymentScheduler | null = null;
+
 // Graceful shutdown: close Fastify and MongoDB client
 const shutdown = async (signal?: string) => {
     try {
@@ -168,6 +186,16 @@ const shutdown = async (signal?: string) => {
         await fastify.close();
     } catch (e) {
         fastify.log.error(`Error closing Fastify: ${String(e)}`);
+    }
+
+    // Stop the scheduler
+    if (schedulerInstance) {
+        try {
+            schedulerInstance.stop();
+            combinedLogger.info('Auto-repayment scheduler stopped');
+        } catch (e) {
+            combinedLogger.error(`Error stopping scheduler: ${String(e)}`);
+        }
     }
 
     try {

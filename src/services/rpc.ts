@@ -4,24 +4,28 @@ import { LoanDataFromContract } from '../types/loan.js';
 import {
     Address,
     createPublicClient,
+    createWalletClient,
     erc20Abi,
     Hex,
     http,
     parseUnits,
 } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import { base, baseSepolia } from 'viem/chains';
 import { combinedLogger } from '../utils/logger.js';
 import { LOAN_ABI } from '../abis/loan.js';
 import { LENDING_POOL } from '../abis/lendingPool.js';
+import { AUTO_REPAYMENT_ABI } from '../abis/autoRepayment.js';
 
 export class Rpc {
     readonly publicClient;
     readonly publicClientMainnet;
+    readonly walletClient;
     readonly CBBTC_EAC_AGG = '0x07DA0E54543a844a80ABE69c8A12F22B3aA59f9D';
     private cachedBtcPrice: { price: number; time: number } | undefined;
 
     constructor(
-        private config: RpcConfig,
+        readonly config: RpcConfig,
         private protocolConfig: ProtocolConfig
     ) {
         if (
@@ -39,6 +43,15 @@ export class Rpc {
         this.publicClientMainnet = createPublicClient({
             transport: http(this.config.mainnetUrl),
             chain: base,
+        });
+
+        const account = privateKeyToAccount(
+            this.config.executorPrivateKey as `0x${string}`
+        );
+        this.walletClient = createWalletClient({
+            account,
+            chain: this.config.chainId === base.id ? base : baseSepolia,
+            transport: http(this.config.url),
         });
     }
 
@@ -217,5 +230,29 @@ export class Rpc {
         return this.publicClient.getTransactionReceipt({
             hash,
         });
+    }
+
+    async executeAutoRepayment(
+        lsa: Address,
+        user: Address,
+        amount: bigint
+    ): Promise<Hex> {
+        combinedLogger.info(
+            `Executing auto-repayment: LSA=${lsa}, User=${user}, Amount=${amount.toString()}`
+        );
+
+        const { request } = await this.publicClient.simulateContract({
+            account: this.walletClient.account,
+            address: this.config.contractAddresses.autoRepayment as Address,
+            abi: AUTO_REPAYMENT_ABI,
+            functionName: 'executeAutoRepayment',
+            args: [lsa, user, amount],
+        });
+
+        const hash = await this.walletClient.writeContract(request);
+
+        combinedLogger.info(`Auto-repayment transaction sent: ${hash}`);
+
+        return hash;
     }
 }
