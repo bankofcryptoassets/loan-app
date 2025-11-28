@@ -37,3 +37,8 @@ export type ParsedInstrument = {
         strike: number;
     };
 };
+
+export interface EMIResult {
+    emi: bigint;
+    descaleFactor: bigint; // Divide by this to get decimal EMI
+}

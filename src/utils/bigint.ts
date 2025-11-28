@@ -16,3 +16,44 @@ export function serializeBigInt(obj: any): any {
     }
     return obj; // primitive (string, number, boolean, null, undefined)
 }
+
+export function scale(a: number | bigint, factor: number): bigint {
+    if (typeof a === 'bigint') {
+        return a * BigInt(10 ** factor);
+    }
+    return BigInt(a * 10 ** factor);
+}
+
+export function descale(a: bigint, factor: number): number {
+    return Number(a) / 10 ** factor;
+}
+
+export function normalize(a: bigint, factor: number): bigint {
+    return a / BigInt(10 ** factor);
+}
+
+export const fixedScale = 10n ** 8n;
+export const fixedScaleExponent = 8;
+
+export function pow(
+    base: bigint,
+    exponent: bigint
+): { value: bigint; scale: bigint } {
+    if (exponent < 0n) {
+        throw new Error('Negative exponents are not supported for bigint pow');
+    }
+
+    let result = fixedScale; // Represents 1.0 in fixed-point math
+    let b = base;
+    let e = exponent;
+
+    while (e > 0n) {
+        if (e & 1n) {
+            result = (result * b) / fixedScale;
+        }
+        b = (b * b) / fixedScale;
+        e >>= 1n;
+    }
+
+    return { value: result, scale: fixedScale };
+}

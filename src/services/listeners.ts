@@ -325,7 +325,9 @@ export class Listeners {
         });
 
         combinedLogger.info(
-            `Loan repayment recorded: LSA=${ev.args.lsa}, Amount=${ev.args.amountRepaid.toString()}`
+            `Loan repayment recorded: LSA=${
+                ev.args.lsa
+            }, Amount=${ev.args.amountRepaid.toString()}`
         );
     }
 
@@ -354,7 +356,9 @@ export class Listeners {
         });
 
         combinedLogger.info(
-            `Micro liquidation recorded: LSA=${lsa}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${ev.args.liquidator}`
+            `Micro liquidation recorded: LSA=${lsa}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${
+                ev.args.liquidator
+            }`
         );
     }
 
@@ -363,7 +367,9 @@ export class Listeners {
     ) {
         try {
             if (!ev.args.lsa) {
-                combinedLogger.error('Loan__ClosedLoan event missing LSA address');
+                combinedLogger.error(
+                    'Loan__ClosedLoan event missing LSA address'
+                );
                 return;
             }
 
@@ -436,7 +442,9 @@ export class Listeners {
             });
 
             combinedLogger.info(
-                `Full liquidation recorded: LSA=${lsa}, LiquidationDate=${liquidationDate.toISOString()}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${ev.args.liquidator}`
+                `Full liquidation recorded: LSA=${lsa}, LiquidationDate=${liquidationDate.toISOString()}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${
+                    ev.args.liquidator
+                }`
             );
         } catch (error) {
             combinedLogger.error(

@@ -8,10 +8,16 @@ import {
     getUserByWallet,
 } from '../repository/loan.js';
 import { Address, formatUnits, isAddress } from 'viem';
-import { serializeBigInt } from '../utils/bigint.js';
+import {
+    descale,
+    scale,
+    serializeBigInt,
+    fixedScale,
+    fixedScaleExponent,
+    pow,
+} from '../utils/bigint.js';
 import { monthsToSeconds, unixToDateString } from '../utils/date.js';
 import { Loan, LsaDetail, RepaymentDetail } from '../types/loan.js';
-
 type EstimateReqParams = {
     qty: string;
     deposit: string;
@@ -37,11 +43,7 @@ class InsuranceController {
         private readonly rpcService: Rpc,
         private readonly protocolConfig: ProtocolConfig
     ) {}
-    /**
-     * estimate handler
-     * Currently returns a placeholder estimate. Accepts query params in the request
-     * and responds with JSON. Keep implementation minimal so it's easy to extend.
-     */
+
     public async estimate(
         request: FastifyRequest,
         reply: FastifyReply
@@ -54,31 +56,48 @@ class InsuranceController {
             });
         }
 
-        const qty = Number(query.qty);
-        const depositPercent = Number(query.deposit) / 100;
-        const deposit = qty * depositPercent;
-        const loan = qty - deposit;
-        const n = Number(query.n ?? 12);
+        const qtyExponent = 8;
+        const depositPercentExponent = 4;
+        const btcPriceExponent = 2;
 
-        if (deposit > 1) {
+        const qty = scale(Number(query.qty), qtyExponent);
+        const depositPercent = scale(
+            Number(query.deposit) / 100,
+            depositPercentExponent
+        );
+        // NOTE: both deposit and loan consists of qtyExponent and depositPercentExponent factors.
+        const deposit = qty * depositPercent;
+        const loan = scale(qty, depositPercentExponent) - deposit;
+        const n = BigInt(query.n ?? 12);
+
+        if (loan < deposit) {
             return reply.code(400).send({
-                message: 'deposit cannot be greater than 1',
+                message: 'loan cannot be less than deposit',
             });
         }
 
         if (loan < 0) {
             return reply.code(400).send({
-                message: 'deposit cannot be greater than amount',
+                message: 'deposit cannot be greater than qty',
             });
         }
 
         // get btc price
         const btcPrice = await this.rpcService.getBtcPrice();
 
+        // scaledBtcPrice is in bigint with btcPriceExponent factor
+        const scaledBtcPrice = scale(btcPrice, btcPriceExponent);
+
         // get strike price, interest rate and btc price from contract.
         const strikePrice = await this.rpcService.getStrikePrice(
-            deposit * btcPrice,
-            loan * btcPrice
+            descale(
+                deposit * scaledBtcPrice,
+                qtyExponent + depositPercentExponent + btcPriceExponent
+            ),
+            descale(
+                loan * scaledBtcPrice,
+                qtyExponent + depositPercentExponent + btcPriceExponent
+            )
         );
 
         const inst = await this.deribitService.getOptimalInstrument(
@@ -91,25 +110,67 @@ class InsuranceController {
         const protocolLoanInitFeePercent = parseFloat(
             this.protocolConfig.protocolLoanInitFee
         );
-        const r = this.protocolConfig.maxInterestRate / 100 / n;
-        const principal = qty * btcPrice * loan;
-        const downPayment = deposit * btcPrice;
-        const emiAmount =
-            (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-        const interestAmount = emiAmount * n - principal;
-        const flashLoanFee = (flashLoanFeePercent * principal) / 100;
+        if (n <= 0n) {
+            return reply.code(400).send({
+                message: 'n should be a positive integer',
+            });
+        }
+
+        const principal = qty * scaledBtcPrice * loan;
+        const principalDecimals =
+            qtyExponent * 2 + depositPercentExponent + btcPriceExponent;
+        const downPayment = descale(
+            deposit * scaledBtcPrice,
+            qtyExponent + btcPriceExponent + depositPercentExponent
+        );
+
+        const periodicRate =
+            this.protocolConfig.maxInterestRate / 100 / Number(n);
+        const rateDecimals = fixedScaleExponent;
+        const rScaled = scale(periodicRate, rateDecimals);
+
+        let emi: bigint;
+        if (rScaled === 0n) {
+            emi = principal / n;
+        } else {
+            const onePlusR = fixedScale + rScaled;
+            const powResult = pow(onePlusR, n);
+            const powValue = powResult.value;
+            const denominator = fixedScale * (powValue - fixedScale);
+
+            if (denominator === 0n) {
+                emi = principal / n;
+            } else {
+                const numerator = principal * rScaled * powValue;
+                emi = numerator / denominator;
+            }
+        }
+
+        const emiAmount = descale(emi, principalDecimals);
+        const interestAmount = descale(emi * n - principal, principalDecimals);
+        const flashLoanFee = (scale(flashLoanFeePercent, 2) * principal) / 100n;
         const protocolLoanInitFee =
-            (protocolLoanInitFeePercent * qty * btcPrice) / 100;
-        const totalFee = flashLoanFee + protocolLoanInitFee;
-        const insuranceAmount = qty * 0.0335 * btcPrice;
-        const total = principal + interestAmount + totalFee + insuranceAmount;
+            (scale(protocolLoanInitFeePercent, 2) * qty * scaledBtcPrice) /
+            100n;
+        const totalFee =
+            descale(flashLoanFee, principalDecimals + 2) +
+            descale(protocolLoanInitFee, 12);
+        const insuranceAmount =
+            descale(qty, qtyExponent) *
+            descale(scaledBtcPrice, btcPriceExponent) *
+            0.0335;
+        const total =
+            descale(principal, principalDecimals) +
+            interestAmount +
+            totalFee +
+            insuranceAmount;
         const downPaymentTotal = downPayment + insuranceAmount + totalFee;
         const approvalTotal = downPayment + insuranceAmount + totalFee;
         return reply.code(200).send({
             success: true,
             data: {
                 insuranceAmount,
-                principal,
+                principal: descale(principal, principalDecimals),
                 downPayment,
                 interestAmount, // (EMI * n) - p
                 emiAmount, // EMI = P*r(1+r)n/((1+r)n-1), where r = 12% from pool mas of slope, n = 12 from FE
@@ -117,8 +178,8 @@ class InsuranceController {
                 maxInterestRate: this.protocolConfig.maxInterestRate,
                 btcPrice,
                 fee: {
-                    flashLoanFee,
-                    protocolLoanInitFee,
+                    flashLoanFee: descale(flashLoanFee, principalDecimals + 2),
+                    protocolLoanInitFee: descale(protocolLoanInitFee, 12),
                     totalFee,
                 },
                 inst: inst[0],
@@ -215,9 +276,10 @@ class InsuranceController {
         // Calculate next due based on lastPaymentTimestamp + 30 days
         const REPAYMENT_INTERVAL_SECONDS = 30 * 24 * 60 * 60; // 30 days
         const lastPayment = Number(lsaDetail.lastPaymentTimestamp);
-        const nextDueTimestamp = lastPayment > 0
-            ? lastPayment + REPAYMENT_INTERVAL_SECONDS
-            : Number(lsaDetail.createdAt) + REPAYMENT_INTERVAL_SECONDS;
+        const nextDueTimestamp =
+            lastPayment > 0
+                ? lastPayment + REPAYMENT_INTERVAL_SECONDS
+                : Number(lsaDetail.createdAt) + REPAYMENT_INTERVAL_SECONDS;
 
         return {
             ...partialLoanDetail,
@@ -275,7 +337,7 @@ class InsuranceController {
 
             const {
                 acbbtcBalance: aTokenBalanceSum,
-                vdtTokenBalance: vdtTokenBalanceSum,
+                vdtTokenBalance: _vdtTokenBalanceSum,
             } = lsaDetails.reduce(
                 (acc, obj) => {
                     return {

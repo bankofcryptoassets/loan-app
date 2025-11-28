@@ -209,7 +209,7 @@ export class Rpc {
             address: this.config.contractAddresses.aTokenUsdc as Address,
             abi: erc20Abi,
             functionName: 'balanceOf',
-            args: [userAddress]
+            args: [userAddress],
         });
     }
 
