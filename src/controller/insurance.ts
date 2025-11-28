@@ -116,9 +116,9 @@ class InsuranceController {
             });
         }
 
-        const principal = qty * scaledBtcPrice * loan;
+        const principal = scaledBtcPrice * loan;
         const principalDecimals =
-            qtyExponent * 2 + depositPercentExponent + btcPriceExponent;
+            qtyExponent + depositPercentExponent + btcPriceExponent;
         const downPayment = descale(
             deposit * scaledBtcPrice,
             qtyExponent + btcPriceExponent + depositPercentExponent
