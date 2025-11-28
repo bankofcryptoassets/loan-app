@@ -105,16 +105,6 @@ const start = async (): Promise<void> => {
             protocol: protocolConfig,
         } = config.getConfig();
 
-        // connect to MongoDB (if configuration provided)
-        // try {
-        //     await connectToMongo(databaseConfig);
-        //     combinedLogger.info('Connected to MongoDB (native driver)');
-        // } catch (dbErr) {
-        //     combinedLogger.warn(
-        //         `Could not connect to MongoDB at startup: ${String(dbErr)}`
-        //     );
-        // }
-
         // connect Mongoose (required for User model)
         try {
             if (databaseConfig.uri && databaseConfig.name) {
