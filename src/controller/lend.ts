@@ -10,25 +10,26 @@ class LendController {
      * Returns global pool statistics for USDC reserve
      */
     public async getUSDCPoolStats(
-        request: FastifyRequest,
+        _request: FastifyRequest,
         reply: FastifyReply
     ): Promise<void> {
         try {
             // Get USDC reserve data from Aave pool
-            const reserveData = (await this.rpcService.getUsdcReserveData()) as {
-                configuration: { data: bigint };
-                liquidityIndex: bigint;
-                variableBorrowIndex: bigint;
-                currentLiquidityRate: bigint;
-                currentVariableBorrowRate: bigint;
-                currentStableBorrowRate: bigint;
-                lastUpdateTimestamp: number;
-                aTokenAddress: `0x${string}`;
-                stableDebtTokenAddress: `0x${string}`;
-                variableDebtTokenAddress: `0x${string}`;
-                interestRateStrategyAddress: `0x${string}`;
-                id: number;
-            };
+            const reserveData =
+                (await this.rpcService.getUsdcReserveData()) as {
+                    configuration: { data: bigint };
+                    liquidityIndex: bigint;
+                    variableBorrowIndex: bigint;
+                    currentLiquidityRate: bigint;
+                    currentVariableBorrowRate: bigint;
+                    currentStableBorrowRate: bigint;
+                    lastUpdateTimestamp: number;
+                    aTokenAddress: `0x${string}`;
+                    stableDebtTokenAddress: `0x${string}`;
+                    variableDebtTokenAddress: `0x${string}`;
+                    interestRateStrategyAddress: `0x${string}`;
+                    id: number;
+                };
 
             // Get actual USDC balance in the pool (USDC held by aToken contract)
             const totalDeposits =
@@ -44,8 +45,10 @@ class LendController {
             const RAY = 10n ** 27n;
             const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
 
-            const ratePerSecond = Number(reserveData.currentLiquidityRate) / Number(RAY);
-            const supplyAPY = (Math.pow(1 + ratePerSecond, SECONDS_PER_YEAR) - 1) * 100;
+            const ratePerSecond =
+                Number(reserveData.currentLiquidityRate) / Number(RAY);
+            const supplyAPY =
+                (Math.pow(1 + ratePerSecond, SECONDS_PER_YEAR) - 1) * 100;
 
             reply.send({
                 totalDeposits: formatUnits(totalDeposits, 6),

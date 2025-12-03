@@ -28,13 +28,19 @@ const loanSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
-    repayments: [{
-        txHash: { type: String, required: true },
-        amount: { type: String, required: true },  // Store as string (BigInt)
-        paymentDate: { type: Number, required: true },  // Unix timestamp
-        paymentType: { type: String, enum: ['regular', 'microLiquidation'], required: true },
-        nextDueTimestamp: { type: Number, required: false },
-    }],
+    repayments: [
+        {
+            txHash: { type: String, required: true },
+            amount: { type: String, required: true }, // Store as string (BigInt)
+            paymentDate: { type: Number, required: true }, // Unix timestamp
+            paymentType: {
+                type: String,
+                enum: ['regular', 'microLiquidation'],
+                required: true,
+            },
+            nextDueTimestamp: { type: Number, required: false },
+        },
+    ],
     salt: {
         type: String,
         required: true,

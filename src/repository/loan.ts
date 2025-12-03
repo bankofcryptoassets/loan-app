@@ -2,13 +2,18 @@ import { Address, Hex } from 'viem';
 import { Loan as LoanModel } from '../models/Loan.js';
 import { Loan as LoanType } from '../types/loan.js';
 
-export async function getUserByLsa(lsaAddress: string): Promise<LoanType | null> {
+export async function getUserByLsa(
+    lsaAddress: string
+): Promise<LoanType | null> {
     return LoanModel.findOne({
         lsaAddress,
     }).lean() as Promise<LoanType | null>;
 }
 
-export async function getUserByWallet(wallet: string, lsaAddress?: string): Promise<LoanType[]> {
+export async function getUserByWallet(
+    wallet: string,
+    lsaAddress?: string
+): Promise<LoanType[]> {
     return lsaAddress
         ? (LoanModel.find(
               {
