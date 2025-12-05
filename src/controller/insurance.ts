@@ -236,10 +236,10 @@ class InsuranceController {
             .getLoanByLsa(loanItem.lsaAddress as Address)
             .then((data) => {
                 return {
-                    ...(data[0] as Exclude<typeof data[0], bigint>),
-                    acbbtcBalance: data[1] as bigint,
-                    vdtTokenBalance: data[2] as bigint,
+                    ...data,
                     ...loanItem,
+                    acbbtcBalance: BigInt(loanItem.acbbtcBalance),
+                    vdtTokenBalance: BigInt(loanItem.vdtTokenBalance),
                 };
             });
     }
@@ -253,24 +253,28 @@ class InsuranceController {
         delete partialLoanDetail.lastPaymentTimestamp;
         delete partialLoanDetail.duration;
 
-        const emi = Number(formatUnits(lsaDetail.estimatedMonthlyPayment, 6));
         const duration = Number(lsaDetail.duration);
+        console.log('\n\n\n');
+        console.log('duration:: ', lsaDetail.duration);
+        console.log('\n\n\n');
         const principal = Number(formatUnits(lsaDetail.loanAmount, 6));
 
         // Interest Estimated = (EMI × duration) - Principal
-        const interestEstimated = emi * duration - principal;
+        const interestEstimated =
+            BigInt(lsaDetail.estimatedMonthlyPayment) * BigInt(duration) -
+            lsaDetail.loanAmount;
 
         // Total Loan = Principal + Interest Estimated
-        const totalLoan = principal + interestEstimated;
+        const totalLoan = lsaDetail.loanAmount + interestEstimated;
 
         // Total Paid = Sum of all repayment amounts
         const totalPaid = (lsaDetail.repayments ?? []).reduce(
-            (sum: number, repayment: RepaymentDetail): number => {
+            (sum: bigint, repayment: RepaymentDetail): bigint => {
                 // repayment.amount is stored as string (BigInt from contract, 6 decimals for USDC)
-                const amountInUsdc = Number(repayment.amount) / 1e6;
+                const amountInUsdc = BigInt(repayment.amount);
                 return sum + amountInUsdc;
             },
-            0
+            0n
         );
 
         // Calculate next due based on lastPaymentTimestamp + 30 days
@@ -284,9 +288,9 @@ class InsuranceController {
         return {
             ...partialLoanDetail,
             principal: principal.toFixed(6),
-            interestEstimated: interestEstimated.toFixed(6),
-            totalLoan: totalLoan.toFixed(6),
-            totalPaid: totalPaid.toFixed(6),
+            interestEstimated: formatUnits(interestEstimated, 6),
+            totalLoan: formatUnits(totalLoan, 6),
+            totalPaid: formatUnits(totalPaid, 6),
             loanStart: unixToDateString(+lsaDetail.salt),
             loanEnd: unixToDateString(
                 +lsaDetail.salt + monthsToSeconds(Number(lsaDetail.duration))
@@ -294,7 +298,7 @@ class InsuranceController {
             nextDue: unixToDateString(nextDueTimestamp),
             lastPayment: lastPayment > 0 ? unixToDateString(lastPayment) : null,
             estimatedMonthlyPayment: formatUnits(
-                lsaDetail.estimatedMonthlyPayment,
+                BigInt(lsaDetail.estimatedMonthlyPayment),
                 6
             ),
             totalInstallments: 12,

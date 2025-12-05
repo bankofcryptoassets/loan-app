@@ -12,172 +12,12 @@ import {
 } from '../repository/loan.js';
 import { combinedLogger } from '../utils/logger.js';
 import { saveLoanInitTx } from '../repository/loanInitTx.js';
-
-type LoanCreatedEventAbi = {
-    anonymous: false;
-    inputs: [
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'borrower';
-            type: 'address';
-        },
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'lsa';
-            type: 'address';
-        },
-        {
-            indexed: false;
-            internalType: 'uint256';
-            name: 'loanAmount';
-            type: 'uint256';
-        },
-        {
-            indexed: false;
-            internalType: 'uint256';
-            name: 'collateralAmount';
-            type: 'uint256';
-        }
-    ];
-    name: 'Loan__LoanCreated';
-    type: 'event';
-};
-
-type LoanRepaidEventAbi = {
-    anonymous: false;
-    inputs: [
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'lsa';
-            type: 'address';
-        },
-        {
-            indexed: true;
-            internalType: 'uint256';
-            name: 'amountRepaid';
-            type: 'uint256';
-        }
-    ];
-    name: 'Loan__LoanRepaid';
-    type: 'event';
-};
-
-type MicroLiquidationCallEventAbi = {
-    anonymous: false;
-    inputs: [
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'collateral';
-            type: 'address';
-        },
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'principal';
-            type: 'address';
-        },
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'user';
-            type: 'address';
-        },
-        {
-            indexed: false;
-            internalType: 'uint256';
-            name: 'debtToCover';
-            type: 'uint256';
-        },
-        {
-            indexed: false;
-            internalType: 'uint256';
-            name: 'liquidatedCollateralAmount';
-            type: 'uint256';
-        },
-        {
-            indexed: false;
-            internalType: 'address';
-            name: 'liquidator';
-            type: 'address';
-        },
-        {
-            indexed: false;
-            internalType: 'bool';
-            name: 'receiveAToken';
-            type: 'bool';
-        }
-    ];
-    name: 'MicroLiquidationCall';
-    type: 'event';
-};
-
-type LoanClosedEventAbi = {
-    anonymous: false;
-    inputs: [
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'lsa';
-            type: 'address';
-        }
-    ];
-    name: 'Loan__ClosedLoan';
-    type: 'event';
-};
-
-type LiquidationCallEventAbi = {
-    anonymous: false;
-    inputs: [
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'collateralAsset';
-            type: 'address';
-        },
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'debtAsset';
-            type: 'address';
-        },
-        {
-            indexed: true;
-            internalType: 'address';
-            name: 'user';
-            type: 'address';
-        },
-        {
-            indexed: false;
-            internalType: 'uint256';
-            name: 'debtToCover';
-            type: 'uint256';
-        },
-        {
-            indexed: false;
-            internalType: 'uint256';
-            name: 'liquidatedCollateralAmount';
-            type: 'uint256';
-        },
-        {
-            indexed: false;
-            internalType: 'address';
-            name: 'liquidator';
-            type: 'address';
-        },
-        {
-            indexed: false;
-            internalType: 'bool';
-            name: 'receiveAToken';
-            type: 'bool';
-        }
-    ];
-    name: 'LiquidationCall';
-    type: 'event';
-};
+import {
+    LiquidationCallEventAbi,
+    LoanClosedEventAbi,
+    LoanCreatedEventAbi,
+    LoanRepaidEventAbi,
+} from '../types/events.js';
 
 export class Listeners {
     constructor(private rpcService: Rpc, private rpcConfig: RpcConfig) {}
@@ -203,15 +43,15 @@ export class Listeners {
             },
         });
 
-        const _unwatch3 = this.rpcService.publicClient.watchContractEvent({
-            address: this.rpcConfig.contractAddresses.lendingPool as Address,
-            abi: LENDING_POOL,
-            eventName: 'MicroLiquidationCall',
-            onLogs: async (args) => {
-                const ev = args[args.length - 1];
-                this.handleMicroLiquidationEvent(ev);
-            },
-        });
+        // const _unwatch3 = this.rpcService.publicClient.watchContractEvent({
+        //     address: this.rpcConfig.contractAddresses.lendingPool as Address,
+        //     abi: LENDING_POOL,
+        //     eventName: 'MicroLiquidationCall',
+        //     onLogs: async (args) => {
+        //         const ev = args[args.length - 1];
+        //         this.handleMicroLiquidationEvent(ev);
+        //     },
+        // });
 
         const _unwatch4 = this.rpcService.publicClient.watchContractEvent({
             address: this.rpcConfig.contractAddresses.loan as Address,
@@ -256,7 +96,7 @@ export class Listeners {
 
             // Get loan data from contract using getLoanByLSA view function
             const [loanData, aTokenBalance, vdtTokenBalance] =
-                await this.rpcService.getLoanByLsa(lsa);
+                await this.rpcService.getLoanAndBalancesByLsa(lsa);
 
             const btcPrice = await this.rpcService.getBtcPrice();
             const tx = await this.rpcService.getTxReceipt(ev.transactionHash);
@@ -275,6 +115,11 @@ export class Listeners {
                 loan: loanData.loanAmount.toString(),
                 salt: createdAt,
                 btcPrice,
+                acbbtcBalance: aTokenBalance.toString(),
+                duration: loanData.duration.toString(),
+                estimatedMonthlyPayment:
+                    loanData.estimatedMonthlyPayment.toString(),
+                vdtTokenBalance: vdtTokenBalance.toString(),
             });
 
             await saveLoanInitTx({
@@ -309,6 +154,8 @@ export class Listeners {
         }
 
         const lsaDetails = await getUserByLsa(ev.args.lsa);
+        const [acbbtcBalance, vdtTokenBalance] =
+            await this.rpcService.getBalances(ev.args.lsa);
 
         if (!lsaDetails) {
             // todo setup alerts if lsa is not found in db
@@ -316,12 +163,22 @@ export class Listeners {
             return;
         }
 
+        const btcPrice = await this.rpcService.getBtcPrice();
+        const blockData = await this.rpcService.getBlockData(ev.blockNumber);
+
         await addRepayment({
             txHash: ev.transactionHash,
             lsaAddress: ev.args.lsa,
             amount: ev.args.amountRepaid.toString(),
-            paymentDate: Number(ev.blockNumber), // Block number as timestamp proxy
-            paymentType: 'regular',
+            paymentDate: Number(blockData.timestamp), // Block number as timestamp proxy
+            paymentType:
+                ev.args.amountRepaid.toString() ===
+                lsaDetails.estimatedMonthlyPayment
+                    ? 'regular'
+                    : 'custom',
+            btcPrice,
+            acbbtcBalance: acbbtcBalance.toString(),
+            vdtTokenBalance: vdtTokenBalance.toString(),
         });
 
         combinedLogger.info(
@@ -331,36 +188,36 @@ export class Listeners {
         );
     }
 
-    private async handleMicroLiquidationEvent(
-        ev: Log<bigint, number, false, MicroLiquidationCallEventAbi>
-    ) {
-        if (!ev.args.user || !ev.args.debtToCover) {
-            // todo setup alerts if user or debtToCover is not defined in event data
-            return;
-        }
+    // private async handleMicroLiquidationEvent(
+    //     ev: Log<bigint, number, false, MicroLiquidationCallEventAbi>
+    // ) {
+    //     if (!ev.args.user || !ev.args.debtToCover) {
+    //         // todo setup alerts if user or debtToCover is not defined in event data
+    //         return;
+    //     }
 
-        const lsa = ev.args.user; // In micro liquidation, 'user' is the LSA address
-        const lsaDetails = await getUserByLsa(lsa);
+    //     const lsa = ev.args.user; // In micro liquidation, 'user' is the LSA address
+    //     const lsaDetails = await getUserByLsa(lsa);
 
-        if (!lsaDetails) {
-            // todo setup alerts if lsa is not found in db
-            return;
-        }
+    //     if (!lsaDetails) {
+    //         // todo setup alerts if lsa is not found in db
+    //         return;
+    //     }
 
-        await addRepayment({
-            txHash: ev.transactionHash,
-            lsaAddress: lsa,
-            amount: ev.args.debtToCover.toString(),
-            paymentDate: Number(ev.blockNumber), // Block number as timestamp proxy
-            paymentType: 'microLiquidation',
-        });
+    //     await addRepayment({
+    //         txHash: ev.transactionHash,
+    //         lsaAddress: lsa,
+    //         amount: ev.args.debtToCover.toString(),
+    //         paymentDate: Number(ev.blockNumber), // Block number as timestamp proxy
+    //         paymentType: 'micro-liquidation',
+    //     });
 
-        combinedLogger.info(
-            `Micro liquidation recorded: LSA=${lsa}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${
-                ev.args.liquidator
-            }`
-        );
-    }
+    //     combinedLogger.info(
+    //         `Micro liquidation recorded: LSA=${lsa}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${
+    //             ev.args.liquidator
+    //         }`
+    //     );
+    // }
 
     private async handleLoanClosedEvent(
         ev: Log<bigint, number, false, LoanClosedEventAbi>
@@ -453,20 +310,6 @@ export class Listeners {
                     Object.getOwnPropertyNames(error)
                 )}`
             );
-        }
-    }
-
-    private handleEvent(
-        ev:
-            | Log<bigint, number, false, LoanCreatedEventAbi>
-            | Log<bigint, number, false, LoanRepaidEventAbi>
-    ) {
-        switch (ev.eventName) {
-            case 'Loan__LoanCreated':
-                this.handleLoanCreatedEvent(ev);
-                break;
-            case 'Loan__LoanRepaid':
-                this.handleLoanRepaidEvent(ev);
         }
     }
 }

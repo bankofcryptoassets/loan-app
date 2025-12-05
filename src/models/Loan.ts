@@ -24,6 +24,22 @@ const loanSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    estimatedMonthlyPayment: {
+        type: String,
+        required: true,
+    },
+    duration: {
+        type: String,
+        required: true,
+    },
+    acbbtcBalance: {
+        type: String,
+        required: true,
+    },
+    vdtTokenBalance: {
+        type: String,
+        required: true,
+    },
     priceAtBuy: {
         type: Number,
         required: true,
@@ -35,10 +51,20 @@ const loanSchema = new mongoose.Schema({
             paymentDate: { type: Number, required: true }, // Unix timestamp
             paymentType: {
                 type: String,
-                enum: ['regular', 'microLiquidation'],
+                enum: [
+                    'regular',
+                    'custom',
+                    'micro-liquidation',
+                    'auto-repayment',
+                ],
                 required: true,
             },
-            nextDueTimestamp: { type: Number, required: false },
+            btcPrice: {
+                type: Number,
+                required: true,
+            },
+            vdtTokenBalance: { type: String, required: true },
+            acbbtcBalance: { type: String, required: true },
         },
     ],
     salt: {

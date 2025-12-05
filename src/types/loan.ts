@@ -2,8 +2,10 @@ export type RepaymentDetail = {
     txHash: string;
     amount: string;
     paymentDate: number;
-    paymentType: 'regular' | 'microLiquidation';
-    nextDueTimestamp?: number;
+    paymentType: 'regular' | 'custom' | 'micro-liquidation' | 'auto-repayment';
+    btcPrice: number;
+    vdtTokenBalance: string;
+    acbbtcBalance: string;
 };
 
 export type Loan = {
@@ -12,8 +14,12 @@ export type Loan = {
     deposit: string;
     loan: string;
     collateral: string;
+    estimatedMonthlyPayment: string;
+    duration: string;
+    acbbtcBalance: string;
+    vdtTokenBalance: string;
     priceAtBuy: number;
-    repayments?: RepaymentDetail[] | null | undefined;
+    repayments: RepaymentDetail[];
     salt: string;
     earlyCloseDate?: Date | null;
     fullyLiquidatedDate?: Date | null;
@@ -36,8 +42,8 @@ export type LsaDetail = {
     depositAmount: bigint;
     loanAmount: bigint;
     collateralAmount: bigint;
-    estimatedMonthlyPayment: bigint;
-    duration: bigint;
+    estimatedMonthlyPayment: string;
+    duration: string;
     createdAt: bigint;
     insuranceID: bigint;
     lastPaymentTimestamp: bigint;

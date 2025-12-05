@@ -78,14 +78,32 @@ export class Rpc {
         return parsedAns;
     }
 
-    async getLoanByLsa(lsa: Address) {
-        const [res, aTokenBalance, vdtTokenBalance] = await Promise.all([
+    async getLoanAndBalancesByLsa(lsa: Address) {
+        const [res, balances] = await Promise.all([
             this.publicClient.readContract({
                 abi: LOAN_ABI,
                 address: this.config.contractAddresses.loan as Address,
                 functionName: 'getLoanByLSA',
                 args: [lsa],
             }),
+            this.getBalances(lsa),
+        ]);
+
+        const loanData = res as LoanDataFromContract;
+        return [loanData, balances[0], balances[1]] as const;
+    }
+
+    async getLoanByLsa(lsa: Address) {
+        return this.publicClient.readContract({
+            abi: LOAN_ABI,
+            address: this.config.contractAddresses.loan as Address,
+            functionName: 'getLoanByLSA',
+            args: [lsa],
+        });
+    }
+
+    async getBalances(lsa: Address) {
+        const [aTokenBalance, vdtTokenBalance] = await Promise.all([
             this.publicClient.readContract({
                 abi: erc20Abi,
                 address: this.config.contractAddresses.aTokenCbbtc as Address,
@@ -100,8 +118,7 @@ export class Rpc {
             }),
         ]);
 
-        const loanData = res as LoanDataFromContract;
-        return [loanData, aTokenBalance, vdtTokenBalance] as const;
+        return [aTokenBalance, vdtTokenBalance] as const;
     }
 
     async fetchEstimationParams(deposit: number, loan: number) {
@@ -216,6 +233,12 @@ export class Rpc {
     async getTxReceipt(hash: Hex) {
         return this.publicClient.getTransactionReceipt({
             hash,
+        });
+    }
+
+    async getBlockData(blockNumber: bigint) {
+        return this.publicClient.getBlock({
+            blockNumber,
         });
     }
 }

@@ -20,13 +20,13 @@ export async function getUserByWallet(
                   wallet,
                   lsaAddress,
               },
-              { _id: 0, __v: 0 }
+              { _id: 0, __v: 0, repayments: { _id: 0, _v: 0 } }
           ).lean() as Promise<LoanType[]>)
         : (LoanModel.find(
               {
                   wallet,
               },
-              { _id: 0, __v: 0 }
+              { _id: 0, __v: 0, repayments: { _id: 0, _v: 0 } }
           ).lean() as Promise<LoanType[]>);
 }
 
@@ -42,11 +42,19 @@ export async function createLoan({
     collateral,
     btcPrice,
     salt,
+    acbbtcBalance,
+    duration,
+    estimatedMonthlyPayment,
+    vdtTokenBalance,
 }: {
     wallet: Address;
     lsaAddress: Address;
     collateral: string;
+    acbbtcBalance: string;
+    duration: string;
     deposit: string;
+    estimatedMonthlyPayment: string;
+    vdtTokenBalance: string;
     loan: string;
     salt: string;
     btcPrice: number;
@@ -55,6 +63,11 @@ export async function createLoan({
         wallet,
         lsaAddress,
         collateral,
+        acbbtcBalance,
+        duration,
+        estimatedMonthlyPayment,
+        vdtTokenBalance,
+        repayments: [],
         deposit,
         loan,
         salt,
@@ -69,14 +82,18 @@ export async function addRepayment({
     amount,
     paymentDate,
     paymentType,
-    nextDueTimestamp,
+    btcPrice,
+    acbbtcBalance,
+    vdtTokenBalance,
 }: {
     txHash: Hex;
     lsaAddress: Address;
     amount: string;
     paymentDate: number;
-    paymentType: 'regular' | 'microLiquidation';
-    nextDueTimestamp?: number;
+    paymentType: 'regular' | 'custom' | 'micro-liquidation' | 'auto-repayment';
+    btcPrice: number;
+    acbbtcBalance: string;
+    vdtTokenBalance: string;
 }) {
     return LoanModel.updateOne(
         { lsaAddress },
@@ -87,7 +104,9 @@ export async function addRepayment({
                     amount,
                     paymentDate,
                     paymentType,
-                    nextDueTimestamp,
+                    btcPrice,
+                    acbbtcBalance,
+                    vdtTokenBalance,
                 },
             },
         }
