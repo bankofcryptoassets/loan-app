@@ -51,28 +51,28 @@ const initializeRoutes = (
         });
     });
     // insurance
-    fastify.get(
-        '/api/insurance/estimate',
-        insuranceController.estimate.bind(insuranceController)
-    );
+    fastify.get('/api/insurance/estimate', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: insuranceController.estimate.bind(insuranceController),
+    });
 
     // metadata
-    fastify.get(
-        '/api/metadata',
-        insuranceController.metadata.bind(insuranceController)
-    );
+    fastify.get('/api/metadata', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: insuranceController.metadata.bind(insuranceController),
+    });
 
     // get by wallet address, or optionally by lsa address also
-    fastify.get(
-        '/api/wallet',
-        insuranceController.getWallet.bind(insuranceController)
-    );
+    fastify.get('/api/wallet', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: insuranceController.getWallet.bind(insuranceController),
+    });
 
     // get only by lsa address
-    fastify.get(
-        '/api/lsa',
-        insuranceController.getLsa.bind(insuranceController)
-    );
+    fastify.get('/api/lsa', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: insuranceController.getLsa.bind(insuranceController),
+    });
 
     // to generate jwt token, uses siwe
     fastify.post('/auth', authController.createToken.bind(authController));
@@ -84,16 +84,16 @@ const initializeRoutes = (
     );
 
     // lend pool stats
-    fastify.get(
-        '/api/lend',
-        lendController.getUSDCPoolStats.bind(lendController)
-    );
+    fastify.get('/api/lend', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: lendController.getUSDCPoolStats.bind(lendController),
+    });
 
     // user aUSDC balance
-    fastify.get(
-        '/api/lend/balance/:address',
-        lendController.getUserAUsdcBalance.bind(lendController)
-    );
+    fastify.get('/api/lend/balance/:address', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: lendController.getUserAUsdcBalance.bind(lendController),
+    });
 };
 
 const initializeListeners = async (listenersService: Listeners) => {

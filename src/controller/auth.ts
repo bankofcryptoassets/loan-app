@@ -80,7 +80,7 @@ class AuthController {
 
         try {
             const decoded = jwt.verify(token, this.config.jwtSecret);
-            (request as any).user = decoded;
+            request.user = decoded as { address: string };
         } catch (error) {
             combinedLogger.error(
                 `Error verifying token: ${JSON.stringify(
