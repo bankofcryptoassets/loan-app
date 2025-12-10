@@ -1,4 +1,5 @@
+import AuthController from './auth.js';
 import InsuranceController from './insurance.js';
 import LendController from './lend.js';
 
-export { InsuranceController, LendController };
+export { AuthController, InsuranceController, LendController };

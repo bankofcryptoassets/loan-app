@@ -50,6 +50,10 @@ export interface ProtocolConfig {
     protocolLoanInitFee: string;
 }
 
+export interface AuthConfig {
+    jwtSecret: string;
+}
+
 export interface AppConfig {
     server: ServerConfig;
     database: DatabaseConfig;
@@ -57,6 +61,7 @@ export interface AppConfig {
     coingecko: CoinGeckoConfig;
     rpc: RpcConfig;
     protocol: ProtocolConfig;
+    auth: AuthConfig;
     jwt?: {
         secret: string;
         expiresIn: string;

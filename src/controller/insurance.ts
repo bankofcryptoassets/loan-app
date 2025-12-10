@@ -191,7 +191,8 @@ class InsuranceController {
     }
 
     public async metadata(request: FastifyRequest, reply: FastifyReply) {
-        const { wallet } = request.query as MetadataParams;
+        const wallet =
+            request.user?.address ?? (request.query as MetadataParams).wallet;
 
         if (!wallet || !isAddress(wallet)) {
             return reply.code(400).send({
@@ -318,7 +319,10 @@ class InsuranceController {
 
     public async getWallet(request: FastifyRequest, reply: FastifyReply) {
         try {
-            const { wallet, lsa } = request.query as GetWalletParams;
+            const wallet =
+                request.user?.address ??
+                (request.query as GetWalletParams).wallet;
+            const { lsa } = request.query as GetWalletParams;
 
             if (!wallet || !isAddress(wallet)) {
                 return reply.code(400).send({
@@ -384,6 +388,12 @@ class InsuranceController {
         }
 
         const result = await getUserByLsa(lsa);
+
+        if (result?.wallet !== request.user?.address) {
+            return reply.code(400).send({
+                message: 'Invalid lsa address for wallet',
+            });
+        }
 
         return reply.code(200).send({
             result,

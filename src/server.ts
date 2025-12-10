@@ -7,7 +7,11 @@ import cors from '@fastify/cors';
 import mongoose from 'mongoose';
 import { ErrorResponse } from './types/index.js';
 import Config from './config/index.js';
-import { InsuranceController, LendController } from './controller/index.js';
+import {
+    AuthController,
+    InsuranceController,
+    LendController,
+} from './controller/index.js';
 import { combinedLogger } from './utils/logger.js';
 import { AxiosService } from './services/axios.js';
 import { DeribitService } from './services/deribit.js';
@@ -33,6 +37,7 @@ fastify.setErrorHandler(
 
 // initialize routes
 const initializeRoutes = (
+    authController: AuthController,
     insuranceController: InsuranceController,
     lendController: LendController
 ) => {
@@ -46,40 +51,49 @@ const initializeRoutes = (
         });
     });
     // insurance
-    fastify.get(
-        '/api/insurance/estimate',
-        insuranceController.estimate.bind(insuranceController)
-    );
+    fastify.get('/api/insurance/estimate', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: insuranceController.estimate.bind(insuranceController),
+    });
 
     // metadata
-    fastify.get(
-        '/api/metadata',
-        insuranceController.metadata.bind(insuranceController)
-    );
+    fastify.get('/api/metadata', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: insuranceController.metadata.bind(insuranceController),
+    });
 
     // get by wallet address, or optionally by lsa address also
-    fastify.get(
-        '/api/wallet',
-        insuranceController.getWallet.bind(insuranceController)
-    );
+    fastify.get('/api/wallet', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: insuranceController.getWallet.bind(insuranceController),
+    });
 
     // get only by lsa address
-    fastify.get(
-        '/api/lsa',
-        insuranceController.getLsa.bind(insuranceController)
+    fastify.get('/api/lsa', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: insuranceController.getLsa.bind(insuranceController),
+    });
+
+    // to generate jwt token, uses siwe
+    fastify.post('/auth', authController.createToken.bind(authController));
+
+    // to refresh the auth token
+    fastify.post(
+        '/refresh-auth',
+        authController.refreshToken.bind(authController)
     );
 
     // lend pool stats
-    fastify.get(
-        '/api/lend',
-        lendController.getUSDCPoolStats.bind(lendController)
-    );
+    fastify.get('/api/lend', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: lendController.getUSDCPoolStats.bind(lendController),
+    });
 
     // user aUSDC balance
-    fastify.get(
-        '/api/lend/balance/:address',
-        lendController.getUserAUsdcBalance.bind(lendController)
-    );
+    fastify.get('/api/lend/balance/:address', {
+        preHandler: authController.authenticateJwt.bind(authController),
+        handler: lendController.getUserAUsdcBalance.bind(lendController),
+    });
 };
 
 const initializeListeners = async (listenersService: Listeners) => {
@@ -103,6 +117,7 @@ const start = async (): Promise<void> => {
             coingecko: coingeckoConfig,
             rpc: rpcConfig,
             protocol: protocolConfig,
+            auth: authConfig,
         } = config.getConfig();
 
         // connect Mongoose (required for User model)
@@ -127,6 +142,7 @@ const start = async (): Promise<void> => {
         const listenersService = new Listeners(rpcService, rpcConfig);
 
         // controllers
+        const authController = new AuthController(rpcService, authConfig);
         const insuranceController = new InsuranceController(
             deribitService,
             rpcService,
@@ -135,7 +151,7 @@ const start = async (): Promise<void> => {
         const lendController = new LendController(rpcService);
 
         //initialize routes
-        initializeRoutes(insuranceController, lendController);
+        initializeRoutes(authController, insuranceController, lendController);
         combinedLogger.info(`Initialized Routes`);
 
         //initialize listeners

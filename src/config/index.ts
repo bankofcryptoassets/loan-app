@@ -82,6 +82,10 @@ class Config {
             protocolLoanInitFee: this.getEnvString('PROTOCOL_LOAN_INIT_FEE'),
         };
 
+        const authConfig = {
+            jwtSecret: this.getEnvString('JWT_SECRET'),
+        };
+
         return {
             server: serverConfig,
             database: databaseConfig,
@@ -89,6 +93,7 @@ class Config {
             coingecko: coingeckoConfig,
             rpc: rpcConfig,
             protocol: protocolConfig,
+            auth: authConfig,
         };
     }
 
