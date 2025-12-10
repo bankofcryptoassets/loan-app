@@ -46,16 +46,14 @@ class AuthController {
                 });
             }
 
-            const token = jwt.sign(
-                { address, iat: Date.now() },
-                this.config.jwtSecret,
-                { expiresIn: '1h' }
-            );
+            const token = jwt.sign({ address }, this.config.jwtSecret, {
+                expiresIn: '1d',
+            });
             return reply.code(200).send({ success: true, token });
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (error) {
             combinedLogger.error(
-                'Error creating suth token: ' +
+                'Error creating auth token: ' +
                     JSON.stringify(error, Object.getOwnPropertyNames(error))
             );
             reply.code(500).send({
@@ -135,11 +133,9 @@ class AuthController {
                 });
             }
             // Create new token with the same address
-            const newToken = jwt.sign(
-                { address, iat: Date.now() },
-                this.config.jwtSecret,
-                { expiresIn: '1h' }
-            );
+            const newToken = jwt.sign({ address }, this.config.jwtSecret, {
+                expiresIn: '1h',
+            });
             return reply.code(200).send({ success: true, token: newToken });
         } catch (error) {
             combinedLogger.error(
