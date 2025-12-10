@@ -7,8 +7,8 @@ import {
     addRepayment,
     createLoan,
     getUserByLsa,
-    updateEarlyCloseDate,
-    updateLiquidationDate,
+    updateCloseData,
+    updateLiquidationData,
 } from '../repository/loan.js';
 import { combinedLogger } from '../utils/logger.js';
 import { saveLoanInitTx } from '../repository/loanInitTx.js';
@@ -17,6 +17,7 @@ import {
     LoanClosedEventAbi,
     LoanCreatedEventAbi,
     LoanRepaidEventAbi,
+    MicroLiquidationCallEventAbi,
 } from '../types/events.js';
 
 export class Listeners {
@@ -43,15 +44,15 @@ export class Listeners {
             },
         });
 
-        // const _unwatch3 = this.rpcService.publicClient.watchContractEvent({
-        //     address: this.rpcConfig.contractAddresses.lendingPool as Address,
-        //     abi: LENDING_POOL,
-        //     eventName: 'MicroLiquidationCall',
-        //     onLogs: async (args) => {
-        //         const ev = args[args.length - 1];
-        //         this.handleMicroLiquidationEvent(ev);
-        //     },
-        // });
+        const _unwatch3 = this.rpcService.publicClient.watchContractEvent({
+            address: this.rpcConfig.contractAddresses.lendingPool as Address,
+            abi: LENDING_POOL,
+            eventName: 'MicroLiquidationCall',
+            onLogs: async (args) => {
+                const ev = args[args.length - 1];
+                this.handleMicroLiquidationEvent(ev);
+            },
+        });
 
         const _unwatch4 = this.rpcService.publicClient.watchContractEvent({
             address: this.rpcConfig.contractAddresses.loan as Address,
@@ -188,36 +189,45 @@ export class Listeners {
         );
     }
 
-    // private async handleMicroLiquidationEvent(
-    //     ev: Log<bigint, number, false, MicroLiquidationCallEventAbi>
-    // ) {
-    //     if (!ev.args.user || !ev.args.debtToCover) {
-    //         // todo setup alerts if user or debtToCover is not defined in event data
-    //         return;
-    //     }
+    private async handleMicroLiquidationEvent(
+        ev: Log<bigint, number, false, MicroLiquidationCallEventAbi>
+    ) {
+        if (!ev.args.user || !ev.args.debtToCover) {
+            // todo setup alerts if user or debtToCover is not defined in event data
+            return;
+        }
 
-    //     const lsa = ev.args.user; // In micro liquidation, 'user' is the LSA address
-    //     const lsaDetails = await getUserByLsa(lsa);
+        const lsa = ev.args.user; // In micro liquidation, 'user' is the LSA address
+        const lsaDetails = await getUserByLsa(lsa);
+        const [acbbtcBalance, vdtTokenBalance] =
+            await this.rpcService.getBalances(lsa);
 
-    //     if (!lsaDetails) {
-    //         // todo setup alerts if lsa is not found in db
-    //         return;
-    //     }
+        if (!lsaDetails) {
+            // todo setup alerts if lsa is not found in db
+            // todo implement fallbacks to process all loans with index=${lsa}
+            return;
+        }
 
-    //     await addRepayment({
-    //         txHash: ev.transactionHash,
-    //         lsaAddress: lsa,
-    //         amount: ev.args.debtToCover.toString(),
-    //         paymentDate: Number(ev.blockNumber), // Block number as timestamp proxy
-    //         paymentType: 'micro-liquidation',
-    //     });
+        const btcPrice = await this.rpcService.getBtcPrice();
+        const blockData = await this.rpcService.getBlockData(ev.blockNumber);
 
-    //     combinedLogger.info(
-    //         `Micro liquidation recorded: LSA=${lsa}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${
-    //             ev.args.liquidator
-    //         }`
-    //     );
-    // }
+        await addRepayment({
+            txHash: ev.transactionHash,
+            lsaAddress: lsa,
+            amount: ev.args.debtToCover.toString(),
+            paymentDate: Number(blockData.timestamp), // Block number as timestamp proxy
+            paymentType: 'micro-liquidation',
+            btcPrice,
+            acbbtcBalance: acbbtcBalance.toString(),
+            vdtTokenBalance: vdtTokenBalance.toString(),
+        });
+
+        combinedLogger.info(
+            `Micro liquidation recorded: LSA=${lsa}, DebtCovered=${ev.args.debtToCover.toString()}, Liquidator=${
+                ev.args.liquidator
+            }`
+        );
+    }
 
     private async handleLoanClosedEvent(
         ev: Log<bigint, number, false, LoanClosedEventAbi>
@@ -244,12 +254,14 @@ export class Listeners {
             const block = await this.rpcService.publicClient.getBlock({
                 blockNumber: ev.blockNumber,
             });
-
+            const btcPrice = await this.rpcService.getBtcPrice();
             const closeDate = new Date(Number(block.timestamp) * 1000);
 
-            await updateEarlyCloseDate({
+            await updateCloseData({
                 lsaAddress: lsa,
                 closeDate,
+                btcPrice,
+                txHash: ev.transactionHash,
             });
 
             combinedLogger.info(
@@ -290,12 +302,14 @@ export class Listeners {
             const block = await this.rpcService.publicClient.getBlock({
                 blockNumber: ev.blockNumber,
             });
-
+            const btcPrice = await this.rpcService.getBtcPrice();
             const liquidationDate = new Date(Number(block.timestamp) * 1000);
 
-            await updateLiquidationDate({
+            await updateLiquidationData({
                 lsaAddress: lsa,
                 liquidationDate,
+                btcPrice,
+                txHash: ev.transactionHash,
             });
 
             combinedLogger.info(

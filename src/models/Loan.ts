@@ -1,5 +1,41 @@
 import mongoose from 'mongoose';
 
+const closeSchema = new mongoose.Schema(
+    {
+        closedDate: {
+            type: Date,
+            required: true,
+        },
+        btcPrice: {
+            type: Number,
+            required: true,
+        },
+        txHash: {
+            type: String,
+            required: true,
+        },
+    },
+    { _id: false }
+);
+
+const liquidatedSchema = new mongoose.Schema(
+    {
+        liquidatedDate: {
+            type: Date,
+            required: true,
+        },
+        btcPrice: {
+            type: Number,
+            required: true,
+        },
+        txHash: {
+            type: String,
+            required: true,
+        },
+    },
+    { _id: false }
+);
+
 const loanSchema = new mongoose.Schema({
     wallet: {
         type: String,
@@ -71,14 +107,12 @@ const loanSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    earlyCloseDate: {
-        type: Date,
-        required: false,
+    close: {
+        type: closeSchema,
         default: null,
     },
-    fullyLiquidatedDate: {
-        type: Date,
-        required: false,
+    liquidated: {
+        type: liquidatedSchema,
         default: null,
     },
 });

@@ -113,35 +113,51 @@ export async function addRepayment({
     );
 }
 
-export async function updateEarlyCloseDate({
+export async function updateCloseData({
     lsaAddress,
     closeDate,
+    btcPrice,
+    txHash,
 }: {
     lsaAddress: Address;
     closeDate: Date;
+    btcPrice: number;
+    txHash: Hex;
 }) {
     return LoanModel.updateOne(
         { lsaAddress },
         {
             $set: {
-                earlyCloseDate: closeDate,
+                close: {
+                    closedDate: closeDate,
+                    btcPrice,
+                    txHash,
+                },
             },
         }
     );
 }
 
-export async function updateLiquidationDate({
+export async function updateLiquidationData({
     lsaAddress,
     liquidationDate,
+    btcPrice,
+    txHash,
 }: {
     lsaAddress: Address;
     liquidationDate: Date;
+    btcPrice: number;
+    txHash: Hex;
 }) {
     return LoanModel.updateOne(
         { lsaAddress },
         {
             $set: {
-                fullyLiquidatedDate: liquidationDate,
+                liquidated: {
+                    liquidatedDate: liquidationDate,
+                    btcPrice,
+                    txHash,
+                },
             },
         }
     );
